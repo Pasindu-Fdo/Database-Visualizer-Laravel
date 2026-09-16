@@ -15,14 +15,42 @@ class SchemaInspector
         $builder = $connection->getSchemaBuilder();
         $tables = []; $relationships = []; $warnings = [];
         
-        $tableListing = method_exists($builder, 'getTableListing')
-            ? (new \ReflectionMethod($builder, 'getTableListing'))->getNumberOfParameters() > 0
-                ? $builder->getTableListing($databaseName)
-                : $builder->getTableListing()
-            : [];
+        $driver = $connection->getDriverName();
+        $pdo = $connection->getPdo();
+        $tableListing = [];
+        
+        try {
+            if ($driver === 'sqlite') {
+                $tableListing = $pdo->query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")->fetchAll(\PDO::FETCH_COLUMN);
+            } elseif ($driver === 'mysql' || $driver === 'mariadb') {
+                $stmt = $pdo->prepare("SELECT TABLE_NAME FROM information_schema.tables WHERE TABLE_SCHEMA = ? AND TABLE_TYPE IN ('BASE TABLE', 'SYSTEM VERSIONED')");
+                $stmt->execute([$databaseName ?: $pdo->query('SELECT DATABASE()')->fetchColumn()]);
+                $tableListing = $stmt->fetchAll(\PDO::FETCH_COLUMN);
+            } elseif ($driver === 'pgsql') {
+                $stmt = $pdo->prepare("SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = current_schema()");
+                $stmt->execute();
+                $tableListing = $stmt->fetchAll(\PDO::FETCH_COLUMN);
+            } else {
+                $rawTables = method_exists($builder, 'getTables')
+                    ? $builder->getTables($databaseName)
+                    : (method_exists($builder, 'getTableListing')
+                        ? ((new \ReflectionMethod($builder, 'getTableListing'))->getNumberOfParameters() > 0 ? $builder->getTableListing($databaseName) : $builder->getTableListing())
+                        : []);
+                foreach ($rawTables as $item) {
+                    $name = is_array($item) ? ($item['name'] ?? reset($item)) : (is_object($item) ? ($item->name ?? reset($item)) : (string) $item);
+                    $schema = is_array($item) ? ($item['schema'] ?? null) : null;
+                    if ($schema && $schema !== $databaseName) continue;
+                    if (is_string($item) && str_contains($item, '.')) {
+                        $parts = explode('.', $item, 2);
+                        if (count($parts) === 2 && $parts[0] !== $databaseName) continue;
+                        $name = $parts[1] ?? $name;
+                    }
+                    $tableListing[] = $name;
+                }
+            }
+        } catch (Throwable) {}
 
-        foreach ($tableListing as $tableItem) {
-            $tableName = is_array($tableItem) ? ($tableItem['name'] ?? reset($tableItem)) : (is_object($tableItem) ? ($tableItem->name ?? reset($tableItem)) : (string) $tableItem);
+        foreach ($tableListing as $tableName) {
             try {
                 $details = method_exists($builder, 'getColumns') ? $builder->getColumns($tableName) : [];
                 $columns = [];
