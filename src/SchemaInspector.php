@@ -11,9 +11,18 @@ class SchemaInspector
     public function inspect(?string $connection = null): array
     {
         $connection = $this->database->connection($connection);
+        $databaseName = $connection->getDatabaseName();
         $builder = $connection->getSchemaBuilder();
         $tables = []; $relationships = []; $warnings = [];
-        foreach ($builder->getTableListing() as $tableName) {
+        
+        $tableListing = method_exists($builder, 'getTableListing')
+            ? (new \ReflectionMethod($builder, 'getTableListing'))->getNumberOfParameters() > 0
+                ? $builder->getTableListing($databaseName)
+                : $builder->getTableListing()
+            : [];
+
+        foreach ($tableListing as $tableItem) {
+            $tableName = is_array($tableItem) ? ($tableItem['name'] ?? reset($tableItem)) : (is_object($tableItem) ? ($tableItem->name ?? reset($tableItem)) : (string) $tableItem);
             try {
                 $details = method_exists($builder, 'getColumns') ? $builder->getColumns($tableName) : [];
                 $columns = [];
@@ -37,7 +46,7 @@ class SchemaInspector
                         }
                     }
                 }
-                $primary = $this->primaryKeys($connection->getDriverName(), $connection->getPdo(), $tableName);
+                $primary = $this->primaryKeys($connection->getDriverName(), $connection->getPdo(), $tableName, $databaseName);
                 foreach ($columns as &$column) $column['isPrimaryKey'] = in_array($column['name'], $primary, true);
                 $tables[] = ['name' => $tableName, 'columns' => $columns, 'primaryKey' => $primary, 'foreignKeys' => $foreignKeys];
             } catch (Throwable $error) { $warnings[] = "$tableName: {$error->getMessage()}"; }
@@ -45,7 +54,7 @@ class SchemaInspector
         return ['dialect' => $connection->getDriverName(), 'tables' => $tables, 'relationships' => $relationships, 'warnings' => $warnings];
     }
 
-    private function primaryKeys(string $driver, \PDO $pdo, string $table): array
+    private function primaryKeys(string $driver, \PDO $pdo, string $table, ?string $databaseName = null): array
     {
         try {
             if ($driver === 'sqlite') {
@@ -54,8 +63,8 @@ class SchemaInspector
                 return array_values(array_map(fn ($row) => $row['name'], array_filter($rows, fn ($row) => (int) $row['pk'] > 0)));
             }
             if ($driver === 'mysql' || $driver === 'mariadb') {
-                $statement = $pdo->prepare("SELECT COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND CONSTRAINT_NAME = 'PRIMARY' ORDER BY ORDINAL_POSITION");
-                $statement->execute([$table]); return $statement->fetchAll(\PDO::FETCH_COLUMN);
+                $statement = $pdo->prepare("SELECT COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND CONSTRAINT_NAME = 'PRIMARY' ORDER BY ORDINAL_POSITION");
+                $statement->execute([$databaseName ?: $pdo->query('SELECT DATABASE()')->fetchColumn(), $table]); return $statement->fetchAll(\PDO::FETCH_COLUMN);
             }
             if ($driver === 'pgsql') {
                 $statement = $pdo->prepare("SELECT a.attname FROM pg_index i JOIN pg_attribute a ON a.attrelid=i.indrelid AND a.attnum=ANY(i.indkey) WHERE i.indrelid=?::regclass AND i.indisprimary");
