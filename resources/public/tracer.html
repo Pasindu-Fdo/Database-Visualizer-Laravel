@@ -202,54 +202,60 @@
 
     .path-input::placeholder { color: var(--text-dim); }
 
-    /* Cookie row */
-    .cookie-row {
+    /* Cookie row - auth badge */
+    .auth-badge-row {
       display: flex;
       align-items: center;
-      gap: 10px;
-      margin-top: -18px;
+      gap: 8px;
+      margin-top: -14px;
       margin-bottom: 18px;
       padding: 0 4px;
     }
 
-    .cookie-label {
+    .auth-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
       font-size: 11px;
       font-weight: 600;
-      color: var(--text-dim);
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-
-    .cookie-input {
-      flex: 1;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11px;
-      color: var(--text-muted);
-      background: var(--bg-2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      outline: none;
-      padding: 5px 10px;
-      min-width: 0;
-      transition: border-color 0.15s;
-    }
-
-    .cookie-input:focus { border-color: var(--indigo); }
-    .cookie-input::placeholder { color: var(--text-dim); }
-
-    .cookie-hint {
-      font-size: 10px;
-      color: var(--text-dim);
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-
-    .cookie-hint a {
       color: var(--indigo);
-      text-decoration: none;
+      background: var(--indigo-dim);
+      border: 1px solid rgba(99,102,241,0.25);
+      border-radius: 999px;
+      padding: 3px 10px;
     }
 
-    .cookie-hint a:hover { text-decoration: underline; }
+    .auth-badge-dot {
+      width: 6px; height: 6px;
+      background: var(--indigo);
+      border-radius: 50%;
+      box-shadow: 0 0 6px var(--indigo);
+    }
+
+    .auth-badge-muted {
+      color: var(--text-dim);
+      background: var(--bg-2);
+      border-color: var(--border);
+    }
+
+    .auth-badge-muted .auth-badge-dot {
+      background: var(--text-dim);
+      box-shadow: none;
+    }
+
+    .auth-config-hint {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .auth-config-hint code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      background: var(--bg);
+      padding: 1px 5px;
+      border-radius: 4px;
+      color: var(--text-muted);
+    }
 
     .run-btn {
       font-size: 13px;
@@ -895,28 +901,13 @@
       </button>
     </div>
 
-    <!-- Cookie row (for authenticated routes) -->
-    <div class="cookie-row">
-      <span class="cookie-label">🍪 Cookies</span>
-      <input
-        id="cookieInput"
-        class="cookie-input"
-        type="text"
-        placeholder="laravel_session=abc...; XSRF-TOKEN=xyz...  (paste from browser DevTools → Application → Cookies)"
-        aria-label="Session cookies for authenticated routes"
-        autocomplete="off"
-        spellcheck="false"
-      />
-      <span class="cookie-hint">For auth routes only — <a href="#" id="cookieHelp" onclick="toggleCookieHelp(event)">how?</a></span>
-    </div>
-
-    <!-- Cookie help tooltip -->
-    <div id="cookieHelpBox" style="display:none;margin-top:-12px;margin-bottom:16px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;line-height:1.8;color:var(--text-muted);">
-      <strong style="color:var(--text)">How to get your session cookies:</strong><br>
-      1. Open your Laravel app in Chrome and log in<br>
-      2. Open DevTools → <strong>Application</strong> tab → <strong>Cookies</strong><br>
-      3. Copy the values of <code style="background:var(--bg);padding:1px 5px;border-radius:4px;font-size:11px">laravel_session</code> and <code style="background:var(--bg);padding:1px 5px;border-radius:4px;font-size:11px">XSRF-TOKEN</code><br>
-      4. Paste here as: <code style="background:var(--bg);padding:1px 5px;border-radius:4px;font-size:11px">laravel_session=VALUE; XSRF-TOKEN=VALUE</code>
+    <!-- Auth bypass badge -->
+    <div class="auth-badge-row">
+      <span id="authBadge" class="auth-badge auth-badge-muted">
+        <span class="auth-badge-dot"></span>
+        <span id="authBadgeLabel">Loading auth info…</span>
+      </span>
+      <span class="auth-config-hint">Override with <code>DB_TRACER_AUTH_USER_ID</code> in your .env</span>
     </div>
 
     <!-- Error banner -->
@@ -1027,7 +1018,6 @@ async function runTrace() {
   const path    = $('pathInput').value.trim();
   const method  = $('methodSelect').value;
   const appUrl  = $('appUrlInput').value.trim();
-  const cookies = $('cookieInput').value.trim();
 
   if (!path) { $('pathInput').focus(); return; }
 
@@ -1037,9 +1027,7 @@ async function runTrace() {
 
   try {
     const params = new URLSearchParams({ url: path, method, app_url: appUrl });
-    const res    = await fetch(`/api/trace?${params}`, {
-      headers: cookies ? { 'X-Tracer-Cookies': cookies } : {},
-    });
+    const res    = await fetch(`/api/trace?${params}`);
     const data   = await res.json();
 
     lastResult = data;
@@ -1282,8 +1270,8 @@ function showError(result) {
   // Show a contextual fix block for common errors.
   const fix = $('errorFix');
   const hints = {
-    302: `<strong>Auth redirect detected.</strong> The route requires a logged-in session.<br>
-          Paste your <code>laravel_session</code> and <code>XSRF-TOKEN</code> cookies into the Cookies field above. Click <a href="#" onclick="toggleCookieHelp(event); return false;">how?</a> for instructions.`,
+    302: `<strong>Auth redirect detected.</strong> The tracer tried to authenticate as the configured user but still got redirected.<br>
+          Try a different <code>DB_TRACER_AUTH_USER_ID</code> in your .env, or verify that user ID exists in your database.`,
     301: `<strong>Redirect (301).</strong> The URL was permanently redirected — try the destination URL directly.`,
     404: `<strong>Route not found.</strong> Check that the path is correct and the app server is running on the configured URL.`,
     405: `<strong>Wrong HTTP method.</strong> The route exists but doesn\'t accept <strong>${result.method}</strong>. Try a different method (e.g. GET).`,
@@ -1342,14 +1330,14 @@ $('appUrlInput').addEventListener('change', () => {
   localStorage.setItem('db-tracer-app-url', $('appUrlInput').value);
 });
 
-// Persist cookie value to localStorage
-$('cookieInput').addEventListener('change', () => {
-  localStorage.setItem('db-tracer-cookies', $('cookieInput').value);
+// Persist app URL edits to localStorage
+$('appUrlInput').addEventListener('change', () => {
+  localStorage.setItem('db-tracer-app-url', $('appUrlInput').value);
 });
 
-// Restore cookie from localStorage
-const savedCookies = localStorage.getItem('db-tracer-cookies');
-if (savedCookies) $('cookieInput').value = savedCookies;
+// Restore from localStorage
+const saved = localStorage.getItem('db-tracer-app-url');
+if (saved) $('appUrlInput').value = saved;
 
 // ── Bootstrap ─────────────────────────────────────────────────────
 loadEnv();
