@@ -1,9 +1,9 @@
 {
   "name": "database-visualizer/laravel",
-  "description": "A local, read-only database schema viewer for Laravel",
+  "description": "Zero-config local database schema visualizer & route query execution flow tracer for Laravel",
   "type": "library",
   "license": "MIT",
-  "keywords": ["laravel", "database", "schema", "visualizer", "development"],
+  "keywords": ["laravel", "database", "schema", "visualizer", "tracer", "query-log", "sql", "development", "profiler"],
   "homepage": "https://github.com/Pasindu-Fdo/Database-Visualizer-Laravel",
   "authors": [{ "name": "Pasindu Deshan", "email": "deshanfdo27@gmail.com" }],
   "support": { "issues": "https://github.com/Pasindu-Fdo/Database-Visualizer/issues", "source": "https://github.com/Pasindu-Fdo/Database-Visualizer-Laravel" },

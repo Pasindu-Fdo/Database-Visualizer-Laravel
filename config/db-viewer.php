@@ -28,10 +28,10 @@ return [
         'app_url'         => env('DB_TRACER_APP_URL', env('APP_URL', 'http://127.0.0.1:8000')),
         'timeout_seconds' => (int) env('DB_TRACER_TIMEOUT', 30),
 
-        // The user ID the tracer middleware will automatically authenticate as
-        // when tracing protected routes. Set DB_TRACER_AUTH_USER_ID in your
-        // .env to use a different user (e.g. an admin account).
-        // Set to 0 to disable auto-auth (tracer will follow redirects instead).
-        'auth_user_id'    => (int) env('DB_TRACER_AUTH_USER_ID', 1),
+        // The user ID the tracer middleware will automatically authenticate as.
+        // - 'auto' or null (default): Automatically logs in as the first user found in the DB.
+        // - Specific integer (e.g. 1): Logs in as that specific User ID.
+        // - 0 or false: Disables auto-authentication.
+        'auth_user_id'    => env('DB_TRACER_AUTH_USER_ID', 'auto'),
     ],
 ];

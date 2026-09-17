@@ -40,17 +40,25 @@ class DbTracerMiddleware
     private function traceRequest(Request $request, Closure $next): Response
     {
         // ── 1. Auth bypass ─────────────────────────────────────────────────
-        // Log in as the configured user so auth middleware passes cleanly.
-        // Auth::loginUsingId() sets the user on the current guard without
-        // touching the session, so it leaves no trace after the request.
-        $userId = (int) config('db-viewer.tracer.auth_user_id', 1);
+        // Log in as an available user so auth middleware passes cleanly.
+        // Tries configured ID, or automatically resolves the first user in the DB.
+        $userId = config('db-viewer.tracer.auth_user_id');
 
-        if ($userId > 0) {
-            try {
-                Auth::loginUsingId($userId);
-            } catch (Throwable) {
-                // User doesn't exist or guard is misconfigured; continue anyway.
+        try {
+            if ($userId === null || $userId === 'auto' || $userId === 0 || $userId === '0') {
+                // Auto-resolve first user from user model / table if available
+                $userModel = config('auth.providers.users.model', 'App\\Models\\User');
+                if (class_exists($userModel)) {
+                    $user = $userModel::first();
+                    if ($user) {
+                        Auth::login($user);
+                    }
+                }
+            } elseif ((int) $userId > 0) {
+                Auth::loginUsingId((int) $userId);
             }
+        } catch (Throwable) {
+            // User model / table doesn't exist or guard misconfigured; continue safely.
         }
 
         // ── 2. CSRF bypass ─────────────────────────────────────────────────
