@@ -1,21 +1,21 @@
-# 🗄️ Laravel Database Visualizer & Route Query Tracer
+# Laravel Database Visualizer & Route Query Tracer
 
 A lightweight, zero-configuration local development package for Laravel to **visualize database schema structure** and **trace SQL execution flows for any HTTP route** in real time.
 
 ---
 
-## ✨ Features
+## Features
 
-- 🗺️ **Schema Visualizer**: Interactive ER diagrams, table relationships, index listings, and column metadata.
-- ⚡ **Route Query Tracer**: Replay any Web or API route (`GET`, `POST`, `PUT`, `DELETE`) and watch SQL queries fire live.
-- 🔄 **Real-Time Data Transfer Flow**: Visual animation showing how data moves between your application routes and database tables.
-- 🔑 **Automatic Zero-Config Auth Bypass**: Automatically logs in as the first available user in `local` environment without pasting cookies or headers.
-- 🛡️ **Automatic CSRF Token Handling**: Post form data or trigger state-mutating endpoints cleanly without `419 Page Expired` errors.
-- 📊 **Read / Write / Mutate Breakdown**: Instant counts and timing analysis for `SELECT`, `INSERT`, `UPDATE`, and `DELETE` queries per table.
+- **Schema Visualizer**: Interactive ER diagrams, table relationships, index listings, and column metadata.
+- **Route Query Tracer**: Replay any Web or API route (`GET`, `POST`, `PUT`, `DELETE`) and watch SQL queries fire live.
+- **Real-Time Data Transfer Flow**: Visual execution flow showing how data moves between your application routes and database tables.
+- **Automatic Zero-Config Auth Bypass**: Automatically logs in as an available user in `local` environment without pasting cookies or headers.
+- **Automatic CSRF Token Handling**: Post form data or trigger state-mutating endpoints cleanly without `419 Page Expired` errors.
+- **Read / Write / Mutate Breakdown**: Instant counts and timing analysis for `SELECT`, `INSERT`, `UPDATE`, and `DELETE` queries per table.
 
 ---
 
-## 📸 Overview & Functionality
+## Overview & Functionality
 
 ```
 +-----------------------------------------------------------------------------------+
@@ -45,7 +45,7 @@ A lightweight, zero-configuration local development package for Laravel to **vis
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Installation
 
@@ -64,12 +64,12 @@ php artisan db:viewer
 ```
 
 The command will automatically launch the interactive dashboard at:
-👉 **`http://127.0.0.1:7331`** (Schema Visualizer)  
-👉 **`http://127.0.0.1:7331/tracer.html`** (Route Query Tracer)
+- **`http://127.0.0.1:7331`** (Schema Visualizer)  
+- **`http://127.0.0.1:7331/tracer.html`** (Route Query Tracer)
 
 ---
 
-## 🔍 How to Use the Route Query Tracer
+## How to Use the Route Query Tracer
 
 1. Make sure your main Laravel application is running (e.g. `php artisan serve` on `http://127.0.0.1:8000`).
 2. Run `php artisan db:viewer`.
@@ -78,12 +78,12 @@ The command will automatically launch the interactive dashboard at:
 5. Click **Trace Request**.
 6. View the exact execution flow:
    - **Table Cards**: Displays total query counts, reads, writes, and mutations per table.
-   - **Data Flow Graph**: Animated particles demonstrating query execution order.
+   - **Data Flow Graph**: Demonstrates query execution order.
    - **Detailed SQL Timeline**: Full SQL code, bindings, execution times in milliseconds, and call sequence.
 
 ---
 
-## 🛠️ Configuration & Options
+## Configuration & Options
 
 Publish the configuration file (optional):
 
@@ -125,7 +125,7 @@ php artisan db:viewer --no-open
 
 ---
 
-## 🔒 Security & Safety
+## Security & Safety
 
 - The query tracer middleware is **strictly inactive** unless `APP_ENV=local`.
 - Non-local environments return raw untouched HTTP responses.
