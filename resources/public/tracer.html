@@ -3,176 +3,183 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#0f0f1a" />
-  <meta name="description" content="Laravel Route Query Tracer — visualize every database read and write for any route in real time." />
+  <meta name="theme-color" content="#ffffff" />
+  <meta name="description" content="Laravel Route Query Tracer — trace database reads and writes in real time." />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <title>Route Tracer — Database Visualizer</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
-    /* ─── Reset & Tokens ─────────────────────────────────────── */
+    /* ─── Reset & Design Tokens (Matched to Schema Visualizer) ───── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:           #0d0d1a;
-      --bg-2:         #13132b;
-      --bg-3:         #1a1a35;
-      --surface:      #1e1e3f;
-      --surface-2:    #252550;
-      --border:       rgba(99,102,241,0.2);
-      --border-hover: rgba(99,102,241,0.5);
+      --bg:           #fafaf8;
+      --bg-panel:     #ffffff;
+      --bg-subtle:    #f5f7f5;
+      --bg-hover:     #f1f2f0;
+      --border:       #dedfdd;
+      --border-subtle:#e5e6e3;
+      --border-dark:  #111111;
 
-      --indigo:       #6366f1;
-      --indigo-dim:   rgba(99,102,241,0.15);
-      --cyan:         #22d3ee;
-      --cyan-dim:     rgba(34,211,238,0.12);
-      --emerald:      #34d399;
-      --emerald-dim:  rgba(52,211,153,0.12);
-      --amber:        #fbbf24;
-      --amber-dim:    rgba(251,191,36,0.12);
-      --rose:         #f87171;
-      --rose-dim:     rgba(248,113,113,0.12);
+      --primary:      #111111;
+      --primary-hover:#000000;
+      --accent:       #6366f1;
 
-      --text:         #e2e8f0;
-      --text-muted:   #94a3b8;
-      --text-dim:     #64748b;
+      --text:         #202226;
+      --text-muted:   #747774;
+      --text-dim:     #898c89;
 
-      --radius:       12px;
-      --radius-sm:    8px;
-      --radius-lg:    16px;
-      --shadow:       0 4px 24px rgba(0,0,0,0.4);
-      --shadow-lg:    0 8px 48px rgba(0,0,0,0.6);
+      --radius:       6px;
+      --radius-sm:    5px;
 
-      /* Read/write/mutate colours */
-      --read-color:   var(--cyan);
-      --read-bg:      var(--cyan-dim);
-      --write-color:  var(--emerald);
-      --write-bg:     var(--emerald-dim);
-      --mutate-color: var(--rose);
-      --mutate-bg:    var(--rose-dim);
-      --other-color:  var(--text-muted);
-      --other-bg:     rgba(148,163,184,0.08);
+      /* Read / Write / Mutate soft pastel colors */
+      --read-color:   #0284c7;
+      --read-bg:      #e0f2fe;
+      --read-border:  #bae6fd;
+
+      --write-color:  #15803d;
+      --write-bg:     #dcfce7;
+      --write-border: #bbf7d0;
+
+      --mutate-color: #b91c1c;
+      --mutate-bg:    #fee2e2;
+      --mutate-border:#fecaca;
+
+      --other-color:  #475569;
+      --other-bg:     #f1f5f9;
+      --other-border: #e2e8f0;
     }
 
     html, body { height: 100%; }
 
     body {
-      font-family: 'Inter', system-ui, sans-serif;
+      font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
       overflow-x: hidden;
     }
 
-    /* ─── Layout ─────────────────────────────────────────────── */
     .app { display: flex; flex-direction: column; min-height: 100vh; }
 
-    /* ─── Header ─────────────────────────────────────────────── */
+    /* ─── Topbar (Matched to Schema Visualizer Header) ───────────── */
     .header {
-      background: var(--bg-2);
+      background: #ffffff;
       border-bottom: 1px solid var(--border);
-      padding: 14px 24px;
+      height: 56px;
+      padding: 0 18px;
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 14px;
       position: sticky;
       top: 0;
       z-index: 100;
-      backdrop-filter: blur(12px);
     }
 
-    .logo-link {
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 29px;
+      height: 29px;
+      border-radius: 6px;
+      background: #111;
+      color: #fff;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .brand-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      text-decoration: none;
       display: flex;
       align-items: center;
       gap: 10px;
-      text-decoration: none;
-      color: inherit;
     }
 
-    .logo-link img { width: 28px; height: 28px; }
-
-    .header-title {
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--text);
-    }
-
-    .header-sep {
+    .brand-sep {
       width: 1px;
-      height: 20px;
+      height: 18px;
       background: var(--border);
-      margin: 0 4px;
     }
 
     .header-badge {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 600;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      padding: 3px 8px;
-      border-radius: 999px;
-      background: var(--indigo-dim);
-      color: var(--indigo);
-      border: 1px solid rgba(99,102,241,0.3);
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #edf0ed;
+      color: #686b68;
+      font-family: 'JetBrains Mono', monospace;
     }
 
     .header-nav {
       margin-left: auto;
       display: flex;
-      gap: 4px;
+      gap: 8px;
     }
 
     .nav-btn {
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text-muted);
-      background: none;
-      border: none;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      background: #ffffff;
+      border: 1px solid var(--border);
       padding: 6px 12px;
       border-radius: var(--radius-sm);
       cursor: pointer;
       text-decoration: none;
-      transition: color 0.15s, background 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s;
     }
 
-    .nav-btn:hover { color: var(--text); background: var(--surface); }
-    .nav-btn.active { color: var(--indigo); background: var(--indigo-dim); }
+    .nav-btn:hover { background: var(--bg-hover); }
+    .nav-btn.primary {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--border-dark);
+    }
+    .nav-btn.primary:hover { background: var(--primary-hover); }
 
-    /* ─── Main content ───────────────────────────────────────── */
-    .main { flex: 1; padding: 28px 24px; max-width: 1400px; margin: 0 auto; width: 100%; }
+    /* ─── Main Content Container ─────────────────────────────────── */
+    .main { flex: 1; padding: 24px 28px; max-width: 1400px; margin: 0 auto; width: 100%; }
 
-    /* ─── Request bar ────────────────────────────────────────── */
+    /* ─── Request Bar (Clean Light Card) ─────────────────────────── */
     .request-bar {
       display: flex;
-      gap: 10px;
-      align-items: stretch;
-      background: var(--surface);
+      gap: 0;
+      align-items: center;
+      background: var(--bg-panel);
       border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 6px 6px 6px 16px;
+      border-radius: var(--radius);
+      padding: 4px;
       margin-bottom: 24px;
-      box-shadow: var(--shadow);
-      transition: border-color 0.2s;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+      transition: border-color 0.15s;
     }
 
-    .request-bar:focus-within { border-color: var(--indigo); }
+    .request-bar:focus-within { border-color: var(--border-dark); }
 
     .method-select {
       font-family: 'JetBrains Mono', monospace;
       font-size: 12px;
       font-weight: 600;
-      color: var(--indigo);
-      background: var(--indigo-dim);
-      border: 1px solid rgba(99,102,241,0.3);
+      color: var(--primary);
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
       border-radius: var(--radius-sm);
-      padding: 0 12px;
+      padding: 8px 12px;
       cursor: pointer;
       outline: none;
-      min-width: 80px;
+      margin-right: 8px;
     }
 
-    .method-select option { background: var(--bg-2); color: var(--text); }
+    .method-select option { background: #ffffff; color: var(--text); }
 
     .app-url-input {
       font-family: 'JetBrains Mono', monospace;
@@ -181,11 +188,10 @@
       background: transparent;
       border: none;
       outline: none;
-      width: 200px;
+      width: 180px;
       flex-shrink: 0;
-      padding: 10px 0;
-      border-right: 1px solid var(--border);
-      padding-right: 12px;
+      border-right: 1px solid var(--border-subtle);
+      padding: 8px 10px 8px 0;
     }
 
     .path-input {
@@ -196,11 +202,31 @@
       background: transparent;
       border: none;
       outline: none;
-      padding: 10px 12px;
+      padding: 8px 12px;
       min-width: 0;
     }
 
     .path-input::placeholder { color: var(--text-dim); }
+
+    .run-btn {
+      font-size: 12px;
+      font-weight: 600;
+      color: #ffffff;
+      background: #111111;
+      border: 1px solid #000000;
+      border-radius: var(--radius-sm);
+      padding: 8px 18px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s, opacity 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .run-btn:hover { background: #000000; }
+    .run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
     /* Cookie row - auth badge */
     .auth-badge-row {
@@ -255,22 +281,6 @@
       padding: 1px 5px;
       border-radius: 4px;
       color: var(--text-muted);
-    }
-
-    .run-btn {
-      font-size: 13px;
-      font-weight: 600;
-      color: #fff;
-      background: linear-gradient(135deg, var(--indigo), #818cf8);
-      border: none;
-      border-radius: 10px;
-      padding: 0 20px;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: opacity 0.15s, transform 0.1s;
-      display: flex;
-      align-items: center;
-      gap: 6px;
     }
 
     .run-btn:hover { opacity: 0.88; }
@@ -517,23 +527,6 @@
       margin-top: -1px;
     }
 
-    .connector-label {
-      position: absolute;
-      left: 14px;
-      top: 50%;
-      transform: translateY(-50%);
-      font-size: 10px;
-      font-weight: 600;
-      padding: 2px 7px;
-      border-radius: 999px;
-      background: var(--type-bg, var(--indigo-dim));
-      color: var(--type-color, var(--indigo));
-      white-space: nowrap;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      border: 1px solid var(--type-color, var(--indigo));
-    }
-
     /* Query step row  */
     .step-row {
       display: grid;
@@ -622,7 +615,6 @@
       letter-spacing: 0.06em;
       padding: 2px 7px;
       border-radius: 999px;
-      background: var(--type-bg, var(--indigo-dim));
       color: var(--type-color, var(--indigo));
     }
 
@@ -725,15 +717,15 @@
       font-size: 10px;
       font-weight: 700;
       padding: 2px 6px;
-      border-radius: 6px;
+      border-radius: 4px;
     }
 
-    .ts-pill.read    { background: var(--read-bg);   color: var(--read-color); }
-    .ts-pill.write   { background: var(--write-bg);  color: var(--write-color); }
-    .ts-pill.mutate  { background: var(--mutate-bg); color: var(--mutate-color); }
+    .ts-pill.read    { background: var(--read-bg);   color: var(--read-color);   border: 1px solid var(--read-border); }
+    .ts-pill.write   { background: var(--write-bg);  color: var(--write-color);  border: 1px solid var(--write-border); }
+    .ts-pill.mutate  { background: var(--mutate-bg); color: var(--mutate-color); border: 1px solid var(--mutate-border); }
 
     /* Legend */
-    .legend { display: flex; flex-direction: column; gap: 10px; }
+    .legend { display: flex; flex-direction: column; gap: 8px; }
 
     .legend-row {
       display: flex;
@@ -744,16 +736,16 @@
     }
 
     .legend-dot {
-      width: 10px;
-      height: 10px;
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
       flex-shrink: 0;
     }
 
-    .legend-dot.read   { background: var(--read-color); box-shadow: 0 0 8px var(--read-color); }
-    .legend-dot.write  { background: var(--write-color); box-shadow: 0 0 8px var(--write-color); }
-    .legend-dot.mutate { background: var(--mutate-color); box-shadow: 0 0 8px var(--mutate-color); }
-    .legend-dot.other  { background: var(--other-color); }
+    .legend-dot.read   { background: #38bdf8; }
+    .legend-dot.write  { background: #4ade80; }
+    .legend-dot.mutate { background: #f87171; }
+    .legend-dot.other  { background: #94a3b8; }
 
     /* Timing bar */
     .timing-list { display: flex; flex-direction: column; gap: 8px; }
@@ -850,16 +842,15 @@
 
   <!-- ── Header ─────────────────────────────────────────────── -->
   <header class="header">
-    <a href="/" class="logo-link" aria-label="Back to schema viewer">
-      <img src="/database-visualizer-logo.png" alt="DB Visualizer Logo" />
-      <span class="header-title">DB Visualizer</span>
+    <a href="/" class="brand-title" aria-label="Back to schema viewer">
+      <div class="brand-mark">❖</div>
+      <span>Database Visualizer</span>
     </a>
-    <div class="header-sep"></div>
     <span class="header-badge">Route Tracer</span>
 
     <nav class="header-nav">
       <a href="/" class="nav-btn">Schema</a>
-      <a href="/tracer.html" class="nav-btn active">Tracer</a>
+      <a href="/tracer.html" class="nav-btn primary">Route Tracer</a>
     </nav>
   </header>
 
@@ -901,15 +892,6 @@
       </button>
     </div>
 
-    <!-- Auth bypass badge -->
-    <div class="auth-badge-row">
-      <span id="authBadge" class="auth-badge auth-badge-muted">
-        <span class="auth-badge-dot"></span>
-        <span id="authBadgeLabel">Loading auth info…</span>
-      </span>
-      <span class="auth-config-hint">Override with <code>DB_TRACER_AUTH_USER_ID</code> in your .env</span>
-    </div>
-
     <!-- Error banner -->
     <div id="errorBanner" class="error-banner" role="alert">
       <div class="error-banner-top">
@@ -933,7 +915,6 @@
         <div class="canvas-title">Query Flow</div>
 
         <div class="empty-state" id="emptyState">
-          <div class="empty-state-icon">🔍</div>
           <div class="empty-state-text">Enter a route path and click <strong>Trace</strong></div>
         </div>
 
@@ -945,13 +926,13 @@
 
         <!-- Table summary -->
         <div class="panel" id="tableSummaryPanel" style="display:none">
-          <div class="panel-header">🗄 Tables Touched</div>
+          <div class="panel-header">Tables Touched</div>
           <div class="panel-body" id="tableSummaryBody"></div>
         </div>
 
         <!-- Timing -->
         <div class="panel" id="timingPanel" style="display:none">
-          <div class="panel-header">⏱ Query Timing</div>
+          <div class="panel-header">Query Timing</div>
           <div class="panel-body">
             <div class="timing-list" id="timingList"></div>
           </div>
@@ -988,10 +969,10 @@ const $ = id => document.getElementById(id);
 
 // ── Config ────────────────────────────────────────────────────────
 const TYPE = {
-  read:   { color: '#22d3ee', bg: 'rgba(34,211,238,0.12)',  icon: '📖', label: 'SELECT' },
-  write:  { color: '#34d399', bg: 'rgba(52,211,153,0.12)',  icon: '✏️',  label: 'INSERT' },
-  mutate: { color: '#f87171', bg: 'rgba(248,113,113,0.12)', icon: '⚡',  label: 'UPDATE/DELETE' },
-  other:  { color: '#94a3b8', bg: 'rgba(148,163,184,0.08)', icon: '🔧', label: 'OTHER' },
+  read:   { color: '#0284c7', bg: '#e0f2fe', icon: '📖', label: 'SELECT' },
+  write:  { color: '#15803d', bg: '#dcfce7', icon: '✏️',  label: 'INSERT' },
+  mutate: { color: '#b91c1c', bg: '#fee2e2', icon: '⚡',  label: 'UPDATE/DELETE' },
+  other:  { color: '#475569', bg: '#f1f5f9', icon: '🔧', label: 'OTHER' },
 };
 
 // ── State ─────────────────────────────────────────────────────────
@@ -1126,8 +1107,7 @@ function renderFlow(data) {
     conn.style.setProperty('--type-color', t.color);
     conn.style.setProperty('--type-bg',    t.bg);
     conn.innerHTML = `
-      <div class="connector-line" style="min-height:28px"></div>
-      <div class="connector-label">#${step.step} ${t.label}</div>
+      <div class="connector-line" style="min-height:24px"></div>
       <div class="connector-arrow" style="border-top-color:${t.color}"></div>
     `;
     area.appendChild(conn);
@@ -1159,9 +1139,8 @@ function renderFlow(data) {
 
     tn.innerHTML = `
       <div class="table-node-header">
-        <span class="table-icon">${t.icon}</span>
         <span class="table-name">${escHtml(step.table)}</span>
-        <span class="table-type-badge" style="background:${t.bg};color:${t.color}">${t.label}</span>
+        <span class="table-type-badge" style="color:${t.color}">${t.label}</span>
         <span class="table-time">${step.time_ms.toFixed(2)} ms</span>
       </div>
       <div class="sql-detail">

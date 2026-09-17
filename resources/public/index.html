@@ -10,29 +10,30 @@
     <script type="module" crossorigin src="/assets/index-Z3yU4h9_.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-CSfJ4Ht8.css">
     <style>
-      /* Route Tracer pill — injected on top of the existing app */
+      /* Route Tracer button — injected on top of the topbar */
       #db-tracer-fab {
         position: fixed;
-        top: 14px;
-        right: 20px;
+        top: 11px;
+        right: 18px;
         z-index: 99999;
-        display: flex;
+        display: inline-flex;
         align-items: center;
-        gap: 7px;
-        background: linear-gradient(135deg,#6366f1,#818cf8);
-        color: #fff;
-        font-family: 'Inter', system-ui, sans-serif;
+        gap: 6px;
+        background: #111111;
+        color: #ffffff;
+        font-family: 'DM Sans', system-ui, sans-serif;
         font-size: 12px;
         font-weight: 600;
-        padding: 7px 14px;
-        border-radius: 999px;
+        padding: 6px 14px;
+        border-radius: 5px;
         text-decoration: none;
-        box-shadow: 0 4px 18px rgba(99,102,241,0.45);
-        transition: opacity 0.15s, transform 0.15s;
-        letter-spacing: 0.02em;
+        border: 1px solid #000000;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        transition: background 0.15s, opacity 0.15s;
+        letter-spacing: 0.01em;
       }
-      #db-tracer-fab:hover { opacity: 0.88; transform: translateY(-1px); }
-      #db-tracer-fab::before { content: '▶'; font-size: 10px; opacity: 0.85; }
+      #db-tracer-fab:hover { background: #000000; opacity: 0.95; }
+      #db-tracer-fab::before { content: '▶'; font-size: 9px; opacity: 0.9; }
     </style>
   </head>
   <body>
