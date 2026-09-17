@@ -3,13 +3,40 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#ffffff" />
+    <meta name="theme-color" content="#0d0d1a" />
+    <meta name="description" content="Laravel Database Visualizer — explore your schema and trace route queries in real time." />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <title>Database Visualizer</title>
     <script type="module" crossorigin src="/assets/index-Z3yU4h9_.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-CSfJ4Ht8.css">
+    <style>
+      /* Route Tracer pill — injected on top of the existing app */
+      #db-tracer-fab {
+        position: fixed;
+        top: 14px;
+        right: 20px;
+        z-index: 99999;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        background: linear-gradient(135deg,#6366f1,#818cf8);
+        color: #fff;
+        font-family: 'Inter', system-ui, sans-serif;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 7px 14px;
+        border-radius: 999px;
+        text-decoration: none;
+        box-shadow: 0 4px 18px rgba(99,102,241,0.45);
+        transition: opacity 0.15s, transform 0.15s;
+        letter-spacing: 0.02em;
+      }
+      #db-tracer-fab:hover { opacity: 0.88; transform: translateY(-1px); }
+      #db-tracer-fab::before { content: '▶'; font-size: 10px; opacity: 0.85; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+    <a id="db-tracer-fab" href="/tracer.html" title="Open Route Query Tracer">Route Tracer</a>
   </body>
 </html>

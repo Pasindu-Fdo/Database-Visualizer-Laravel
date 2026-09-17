@@ -1,0 +1,1358 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f0f1a" />
+  <meta name="description" content="Laravel Route Query Tracer — visualize every database read and write for any route in real time." />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <title>Route Tracer — Database Visualizer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── Reset & Tokens ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #0d0d1a;
+      --bg-2:         #13132b;
+      --bg-3:         #1a1a35;
+      --surface:      #1e1e3f;
+      --surface-2:    #252550;
+      --border:       rgba(99,102,241,0.2);
+      --border-hover: rgba(99,102,241,0.5);
+
+      --indigo:       #6366f1;
+      --indigo-dim:   rgba(99,102,241,0.15);
+      --cyan:         #22d3ee;
+      --cyan-dim:     rgba(34,211,238,0.12);
+      --emerald:      #34d399;
+      --emerald-dim:  rgba(52,211,153,0.12);
+      --amber:        #fbbf24;
+      --amber-dim:    rgba(251,191,36,0.12);
+      --rose:         #f87171;
+      --rose-dim:     rgba(248,113,113,0.12);
+
+      --text:         #e2e8f0;
+      --text-muted:   #94a3b8;
+      --text-dim:     #64748b;
+
+      --radius:       12px;
+      --radius-sm:    8px;
+      --radius-lg:    16px;
+      --shadow:       0 4px 24px rgba(0,0,0,0.4);
+      --shadow-lg:    0 8px 48px rgba(0,0,0,0.6);
+
+      /* Read/write/mutate colours */
+      --read-color:   var(--cyan);
+      --read-bg:      var(--cyan-dim);
+      --write-color:  var(--emerald);
+      --write-bg:     var(--emerald-dim);
+      --mutate-color: var(--rose);
+      --mutate-bg:    var(--rose-dim);
+      --other-color:  var(--text-muted);
+      --other-bg:     rgba(148,163,184,0.08);
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ─── Layout ─────────────────────────────────────────────── */
+    .app { display: flex; flex-direction: column; min-height: 100vh; }
+
+    /* ─── Header ─────────────────────────────────────────────── */
+    .header {
+      background: var(--bg-2);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+
+    .logo-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .logo-link img { width: 28px; height: 28px; }
+
+    .header-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .header-sep {
+      width: 1px;
+      height: 20px;
+      background: var(--border);
+      margin: 0 4px;
+    }
+
+    .header-badge {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--indigo-dim);
+      color: var(--indigo);
+      border: 1px solid rgba(99,102,241,0.3);
+    }
+
+    .header-nav {
+      margin-left: auto;
+      display: flex;
+      gap: 4px;
+    }
+
+    .nav-btn {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      text-decoration: none;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    .nav-btn:hover { color: var(--text); background: var(--surface); }
+    .nav-btn.active { color: var(--indigo); background: var(--indigo-dim); }
+
+    /* ─── Main content ───────────────────────────────────────── */
+    .main { flex: 1; padding: 28px 24px; max-width: 1400px; margin: 0 auto; width: 100%; }
+
+    /* ─── Request bar ────────────────────────────────────────── */
+    .request-bar {
+      display: flex;
+      gap: 10px;
+      align-items: stretch;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 6px 6px 6px 16px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+      transition: border-color 0.2s;
+    }
+
+    .request-bar:focus-within { border-color: var(--indigo); }
+
+    .method-select {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--indigo);
+      background: var(--indigo-dim);
+      border: 1px solid rgba(99,102,241,0.3);
+      border-radius: var(--radius-sm);
+      padding: 0 12px;
+      cursor: pointer;
+      outline: none;
+      min-width: 80px;
+    }
+
+    .method-select option { background: var(--bg-2); color: var(--text); }
+
+    .app-url-input {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text-muted);
+      background: transparent;
+      border: none;
+      outline: none;
+      width: 200px;
+      flex-shrink: 0;
+      padding: 10px 0;
+      border-right: 1px solid var(--border);
+      padding-right: 12px;
+    }
+
+    .path-input {
+      flex: 1;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--text);
+      background: transparent;
+      border: none;
+      outline: none;
+      padding: 10px 12px;
+      min-width: 0;
+    }
+
+    .path-input::placeholder { color: var(--text-dim); }
+
+    /* Cookie row */
+    .cookie-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: -18px;
+      margin-bottom: 18px;
+      padding: 0 4px;
+    }
+
+    .cookie-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-dim);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .cookie-input {
+      flex: 1;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      outline: none;
+      padding: 5px 10px;
+      min-width: 0;
+      transition: border-color 0.15s;
+    }
+
+    .cookie-input:focus { border-color: var(--indigo); }
+    .cookie-input::placeholder { color: var(--text-dim); }
+
+    .cookie-hint {
+      font-size: 10px;
+      color: var(--text-dim);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .cookie-hint a {
+      color: var(--indigo);
+      text-decoration: none;
+    }
+
+    .cookie-hint a:hover { text-decoration: underline; }
+
+    .run-btn {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      background: linear-gradient(135deg, var(--indigo), #818cf8);
+      border: none;
+      border-radius: 10px;
+      padding: 0 20px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity 0.15s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .run-btn:hover { opacity: 0.88; }
+    .run-btn:active { transform: scale(0.97); }
+    .run-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .run-btn .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+
+    .run-btn.loading .spinner { display: block; }
+    .run-btn.loading .btn-label { display: none; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Error Banner ───────────────────────────────────────── */
+    .error-banner {
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      background: var(--rose-dim);
+      border: 1px solid rgba(248,113,113,0.3);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .error-banner.visible { display: flex; }
+
+    .error-banner-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+    .error-banner strong { color: var(--rose); display: block; margin-bottom: 2px; }
+
+    /* ─── Stats Row ──────────────────────────────────────────── */
+    .stats-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .stat-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity 0.3s, transform 0.3s;
+    }
+
+    .stat-chip.visible { opacity: 1; transform: translateY(0); }
+
+    .stat-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .stat-chip .value { color: var(--text); font-weight: 600; }
+
+    /* ─── Main grid ──────────────────────────────────────────── */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 20px;
+      align-items: start;
+    }
+
+    @media (max-width: 1000px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    /* ─── Flow canvas ────────────────────────────────────────── */
+    .canvas-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      min-height: 480px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .canvas-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 60% 40% at 50% 0%, rgba(99,102,241,0.06), transparent);
+      pointer-events: none;
+    }
+
+    .canvas-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .canvas-title::before {
+      content: '';
+      width: 3px;
+      height: 14px;
+      background: var(--indigo);
+      border-radius: 2px;
+    }
+
+    /* Empty state */
+    .empty-state {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--text-dim);
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      opacity: 0.4;
+    }
+
+    .empty-state-text { font-size: 14px; }
+
+    /* Flow nodes area */
+    .flow-area {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      position: relative;
+    }
+
+    /* Request node */
+    .request-node {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--indigo-dim);
+      border: 1px solid rgba(99,102,241,0.4);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      margin-bottom: 0;
+      opacity: 0;
+      transform: translateX(-12px);
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+
+    .request-node.visible { opacity: 1; transform: translateX(0); }
+
+    .request-node-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--indigo);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .request-node-info { flex: 1; min-width: 0; }
+
+    .request-node-method {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--indigo);
+      margin-bottom: 2px;
+    }
+
+    .request-node-path {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .request-node-status {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      flex-shrink: 0;
+    }
+
+    .status-2xx { background: var(--emerald-dim); color: var(--emerald); }
+    .status-4xx { background: var(--amber-dim); color: var(--amber); }
+    .status-5xx { background: var(--rose-dim); color: var(--rose); }
+
+    /* Connector line between nodes */
+    .connector {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2px 0;
+      position: relative;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .connector.visible { opacity: 1; }
+
+    .connector-line {
+      width: 2px;
+      background: linear-gradient(to bottom, var(--type-color, var(--indigo)), transparent);
+      flex: 1;
+      min-height: 20px;
+      position: relative;
+    }
+
+    .connector-arrow {
+      width: 0;
+      height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 7px solid var(--type-color, var(--indigo));
+      margin-top: -1px;
+    }
+
+    .connector-label {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: var(--type-bg, var(--indigo-dim));
+      color: var(--type-color, var(--indigo));
+      white-space: nowrap;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      border: 1px solid var(--type-color, var(--indigo));
+    }
+
+    /* Query step row  */
+    .step-row {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 0 12px;
+      align-items: start;
+    }
+
+    .step-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 6px;
+    }
+
+    .step-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      background: var(--type-bg, var(--indigo-dim));
+      color: var(--type-color, var(--indigo));
+      border: 1.5px solid var(--type-color, var(--indigo));
+      flex-shrink: 0;
+    }
+
+    .step-line {
+      flex: 1;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--type-color, var(--indigo)), transparent);
+      min-height: 16px;
+      margin-top: 4px;
+    }
+
+    /* Table node card */
+    .table-node {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      margin-bottom: 4px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, transform 0.15s;
+      opacity: 0;
+      transform: translateX(10px);
+    }
+
+    .table-node.visible { opacity: 1; transform: translateX(0); }
+
+    .table-node:hover {
+      border-color: var(--type-color, var(--indigo));
+      background: var(--type-bg, var(--indigo-dim));
+      transform: translateX(3px);
+    }
+
+    .table-node.expanded { border-color: var(--type-color, var(--indigo)); }
+
+    .table-node-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .table-icon {
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .table-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      flex: 1;
+    }
+
+    .table-type-badge {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: var(--type-bg, var(--indigo-dim));
+      color: var(--type-color, var(--indigo));
+    }
+
+    .table-time {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+      flex-shrink: 0;
+    }
+
+    /* SQL detail (expanded) */
+    .sql-detail {
+      display: none;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+    .table-node.expanded .sql-detail { display: block; }
+
+    .sql-block {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      line-height: 1.6;
+      color: var(--text-muted);
+      white-space: pre-wrap;
+      word-break: break-all;
+      overflow-x: auto;
+    }
+
+    .bindings-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-top: 8px;
+      margin-bottom: 4px;
+    }
+
+    /* ─── Sidebar ────────────────────────────────────────────── */
+    .sidebar { display: flex; flex-direction: column; gap: 16px; }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-body { padding: 16px 18px; }
+
+    /* Table summary */
+    .table-summary-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity 0.3s, transform 0.3s;
+    }
+
+    .table-summary-row:last-child { border-bottom: none; }
+    .table-summary-row.visible { opacity: 1; transform: translateY(0); }
+
+    .tsrow-name {
+      flex: 1;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .ts-pills { display: flex; gap: 4px; flex-shrink: 0; }
+
+    .ts-pill {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
+
+    .ts-pill.read    { background: var(--read-bg);   color: var(--read-color); }
+    .ts-pill.write   { background: var(--write-bg);  color: var(--write-color); }
+    .ts-pill.mutate  { background: var(--mutate-bg); color: var(--mutate-color); }
+
+    /* Legend */
+    .legend { display: flex; flex-direction: column; gap: 10px; }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .legend-dot.read   { background: var(--read-color); box-shadow: 0 0 8px var(--read-color); }
+    .legend-dot.write  { background: var(--write-color); box-shadow: 0 0 8px var(--write-color); }
+    .legend-dot.mutate { background: var(--mutate-color); box-shadow: 0 0 8px var(--mutate-color); }
+    .legend-dot.other  { background: var(--other-color); }
+
+    /* Timing bar */
+    .timing-list { display: flex; flex-direction: column; gap: 8px; }
+
+    .timing-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity 0.3s, transform 0.3s;
+    }
+
+    .timing-row.visible { opacity: 1; transform: translateY(0); }
+
+    .timing-info {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+    }
+
+    .timing-table {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      color: var(--text);
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .timing-ms {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-dim);
+      flex-shrink: 0;
+    }
+
+    .timing-bar-track {
+      height: 4px;
+      background: var(--bg-3);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .timing-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      width: 0;
+      transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    /* ─── Tooltip ────────────────────────────────────────────── */
+    #tooltip {
+      position: fixed;
+      z-index: 9999;
+      pointer-events: none;
+      display: none;
+      background: var(--bg-3);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      max-width: 380px;
+      box-shadow: var(--shadow-lg);
+      line-height: 1.6;
+      color: var(--text-muted);
+    }
+
+    /* ─── Keyframes ──────────────────────────────────────────── */
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .pulse-ring {
+      animation: pulseRing 2s ease-in-out infinite;
+    }
+
+    @keyframes pulseRing {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.3); }
+      50%       { box-shadow: 0 0 0 6px rgba(99,102,241,0); }
+    }
+
+    /* ─── Scrollbar ──────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--surface-2); border-radius: 3px; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Header ─────────────────────────────────────────────── -->
+  <header class="header">
+    <a href="/" class="logo-link" aria-label="Back to schema viewer">
+      <img src="/database-visualizer-logo.png" alt="DB Visualizer Logo" />
+      <span class="header-title">DB Visualizer</span>
+    </a>
+    <div class="header-sep"></div>
+    <span class="header-badge">Route Tracer</span>
+
+    <nav class="header-nav">
+      <a href="/" class="nav-btn">Schema</a>
+      <a href="/tracer.html" class="nav-btn active">Tracer</a>
+    </nav>
+  </header>
+
+  <!-- ── Main ───────────────────────────────────────────────── -->
+  <main class="main" id="main">
+
+    <!-- Request bar -->
+    <div class="request-bar" role="search" aria-label="Route tracer input">
+      <select class="method-select" id="methodSelect" aria-label="HTTP method">
+        <option>GET</option>
+        <option>POST</option>
+        <option>PUT</option>
+        <option>PATCH</option>
+        <option>DELETE</option>
+      </select>
+
+      <input
+        id="appUrlInput"
+        class="app-url-input"
+        type="url"
+        placeholder="http://127.0.0.1:8000"
+        aria-label="Application base URL"
+        title="Your Laravel app base URL"
+      />
+
+      <input
+        id="pathInput"
+        class="path-input"
+        type="text"
+        placeholder="/api/profile  or  /videos/update"
+        aria-label="Route path to trace"
+        autocomplete="off"
+        spellcheck="false"
+      />
+
+      <button id="runBtn" class="run-btn pulse-ring" aria-label="Run trace">
+        <div class="spinner" aria-hidden="true"></div>
+        <span class="btn-label">▶ Trace</span>
+      </button>
+    </div>
+
+    <!-- Cookie row (for authenticated routes) -->
+    <div class="cookie-row">
+      <span class="cookie-label">🍪 Cookies</span>
+      <input
+        id="cookieInput"
+        class="cookie-input"
+        type="text"
+        placeholder="laravel_session=abc...; XSRF-TOKEN=xyz...  (paste from browser DevTools → Application → Cookies)"
+        aria-label="Session cookies for authenticated routes"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <span class="cookie-hint">For auth routes only — <a href="#" id="cookieHelp" onclick="toggleCookieHelp(event)">how?</a></span>
+    </div>
+
+    <!-- Cookie help tooltip -->
+    <div id="cookieHelpBox" style="display:none;margin-top:-12px;margin-bottom:16px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;line-height:1.8;color:var(--text-muted);">
+      <strong style="color:var(--text)">How to get your session cookies:</strong><br>
+      1. Open your Laravel app in Chrome and log in<br>
+      2. Open DevTools → <strong>Application</strong> tab → <strong>Cookies</strong><br>
+      3. Copy the values of <code style="background:var(--bg);padding:1px 5px;border-radius:4px;font-size:11px">laravel_session</code> and <code style="background:var(--bg);padding:1px 5px;border-radius:4px;font-size:11px">XSRF-TOKEN</code><br>
+      4. Paste here as: <code style="background:var(--bg);padding:1px 5px;border-radius:4px;font-size:11px">laravel_session=VALUE; XSRF-TOKEN=VALUE</code>
+    </div>
+
+    <!-- Error banner -->
+    <div id="errorBanner" class="error-banner" role="alert">
+      <div class="error-banner-top">
+        <span class="error-banner-icon">⚠</span>
+        <div>
+          <strong id="errorTitle">Connection failed</strong>
+          <span id="errorMsg"></span>
+        </div>
+      </div>
+      <div id="errorFix" class="error-fix"></div>
+    </div>
+
+    <!-- Stats row -->
+    <div class="stats-row" id="statsRow" aria-live="polite"></div>
+
+    <!-- Content grid -->
+    <div class="grid">
+
+      <!-- Left: Flow canvas -->
+      <div class="canvas-card" id="canvasCard">
+        <div class="canvas-title">Query Flow</div>
+
+        <div class="empty-state" id="emptyState">
+          <div class="empty-state-icon">🔍</div>
+          <div class="empty-state-text">Enter a route path and click <strong>Trace</strong></div>
+        </div>
+
+        <div class="flow-area" id="flowArea" style="display:none"></div>
+      </div>
+
+      <!-- Right: Sidebar panels -->
+      <aside class="sidebar">
+
+        <!-- Table summary -->
+        <div class="panel" id="tableSummaryPanel" style="display:none">
+          <div class="panel-header">🗄 Tables Touched</div>
+          <div class="panel-body" id="tableSummaryBody"></div>
+        </div>
+
+        <!-- Timing -->
+        <div class="panel" id="timingPanel" style="display:none">
+          <div class="panel-header">⏱ Query Timing</div>
+          <div class="panel-body">
+            <div class="timing-list" id="timingList"></div>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="panel">
+          <div class="panel-header">Legend</div>
+          <div class="panel-body">
+            <div class="legend">
+              <div class="legend-row"><div class="legend-dot read"></div> SELECT — read</div>
+              <div class="legend-row"><div class="legend-dot write"></div> INSERT — write</div>
+              <div class="legend-row"><div class="legend-dot mutate"></div> UPDATE / DELETE — mutate</div>
+              <div class="legend-row"><div class="legend-dot other"></div> Other (SET, SHOW…)</div>
+            </div>
+          </div>
+        </div>
+
+      </aside>
+    </div>
+  </main>
+
+</div>
+
+<!-- Tooltip -->
+<div id="tooltip" role="tooltip"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   Route Tracer — Client Script
+   ═══════════════════════════════════════════════════════════════ */
+
+const $ = id => document.getElementById(id);
+
+// ── Config ────────────────────────────────────────────────────────
+const TYPE = {
+  read:   { color: '#22d3ee', bg: 'rgba(34,211,238,0.12)',  icon: '📖', label: 'SELECT' },
+  write:  { color: '#34d399', bg: 'rgba(52,211,153,0.12)',  icon: '✏️',  label: 'INSERT' },
+  mutate: { color: '#f87171', bg: 'rgba(248,113,113,0.12)', icon: '⚡',  label: 'UPDATE/DELETE' },
+  other:  { color: '#94a3b8', bg: 'rgba(148,163,184,0.08)', icon: '🔧', label: 'OTHER' },
+};
+
+// ── State ─────────────────────────────────────────────────────────
+let lastResult = null;
+
+// ── Init: load app URL from server env ───────────────────────────
+async function loadEnv() {
+  try {
+    const res  = await fetch('/api/env');
+    const data = await res.json();
+    if (data.app_url) {
+      $('appUrlInput').value = data.app_url;
+    }
+    if (data.tracer_enabled === false) {
+      showError('Tracer Disabled', 'Set DB_TRACER_ENABLED=true in your .env to enable tracing.');
+    }
+  } catch (_) {
+    $('appUrlInput').value = 'http://127.0.0.1:8000';
+  }
+}
+
+// ── Run trace ─────────────────────────────────────────────────────
+async function runTrace() {
+  const path    = $('pathInput').value.trim();
+  const method  = $('methodSelect').value;
+  const appUrl  = $('appUrlInput').value.trim();
+  const cookies = $('cookieInput').value.trim();
+
+  if (!path) { $('pathInput').focus(); return; }
+
+  hideError();
+  setLoading(true);
+  clearResults();
+
+  try {
+    const params = new URLSearchParams({ url: path, method, app_url: appUrl });
+    const res    = await fetch(`/api/trace?${params}`, {
+      headers: cookies ? { 'X-Tracer-Cookies': cookies } : {},
+    });
+    const data   = await res.json();
+
+    lastResult = data;
+
+    if (!data.ok) {
+      showError(data);
+      return;
+    }
+
+    renderResults(data);
+  } catch (err) {
+    showError('Network Error', err.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+// ── Render results ────────────────────────────────────────────────
+function renderResults(data) {
+  renderStats(data);
+  renderFlow(data);
+  renderTableSummary(data.tables || {});
+  renderTiming(data.sequence || []);
+}
+
+function renderStats(data) {
+  const statusClass = data.status >= 500 ? 'status-5xx'
+    : data.status >= 400 ? 'status-4xx' : 'status-2xx';
+
+  const total  = (data.queries || []).length;
+  const reads  = (data.sequence || []).filter(s => s.type === 'read').length;
+  const writes = (data.sequence || []).filter(s => s.type === 'write').length;
+  const muts   = (data.sequence || []).filter(s => s.type === 'mutate').length;
+
+  const chips = [
+    { dot: '#6366f1', label: `${data.duration_ms} ms total` },
+    { dot: '#94a3b8', label: `${total} ${total === 1 ? 'query' : 'queries'}` },
+    { dot: TYPE.read.color,   label: `${reads} reads` },
+    { dot: TYPE.write.color,  label: `${writes} inserts` },
+    { dot: TYPE.mutate.color, label: `${muts} mutates` },
+  ];
+
+  const row = $('statsRow');
+  row.innerHTML = '';
+
+  chips.forEach((c, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'stat-chip';
+    chip.innerHTML = `<span class="stat-dot" style="background:${c.dot}"></span><span class="value">${c.label}</span>`;
+    row.appendChild(chip);
+    setTimeout(() => chip.classList.add('visible'), i * 60);
+  });
+}
+
+function renderFlow(data) {
+  const area   = $('flowArea');
+  const empty  = $('emptyState');
+  const seq    = data.sequence || [];
+
+  area.innerHTML = '';
+  area.style.display = 'flex';
+  empty.style.display = 'none';
+
+  // Request node
+  const rn = document.createElement('div');
+  rn.className = 'request-node';
+  const statusClass = data.status >= 500 ? 'status-5xx'
+    : data.status >= 400 ? 'status-4xx' : 'status-2xx';
+  rn.innerHTML = `
+    <div class="request-node-icon">🌐</div>
+    <div class="request-node-info">
+      <div class="request-node-method">${data.method}</div>
+      <div class="request-node-path">${escHtml(data.url)}</div>
+    </div>
+    <span class="request-node-status ${statusClass}">${data.status}</span>
+  `;
+  area.appendChild(rn);
+  setTimeout(() => rn.classList.add('visible'), 80);
+
+  if (seq.length === 0) {
+    const none = document.createElement('div');
+    none.style.cssText = 'text-align:center;color:var(--text-dim);font-size:13px;padding:32px;';
+    none.textContent = 'No database queries were captured for this request.';
+    area.appendChild(none);
+    return;
+  }
+
+  // Steps
+  seq.forEach((step, i) => {
+    const t = TYPE[step.type] || TYPE.other;
+    const delay = 160 + i * 90;
+
+    // Connector
+    const conn = document.createElement('div');
+    conn.className = 'connector';
+    conn.style.setProperty('--type-color', t.color);
+    conn.style.setProperty('--type-bg',    t.bg);
+    conn.innerHTML = `
+      <div class="connector-line" style="min-height:28px"></div>
+      <div class="connector-label">#${step.step} ${t.label}</div>
+      <div class="connector-arrow" style="border-top-color:${t.color}"></div>
+    `;
+    area.appendChild(conn);
+    setTimeout(() => conn.classList.add('visible'), delay - 40);
+
+    // Step row
+    const stepRow = document.createElement('div');
+    stepRow.className = 'step-row';
+
+    const stepCol = document.createElement('div');
+    stepCol.className = 'step-col';
+    stepCol.style.setProperty('--type-color', t.color);
+    stepCol.style.setProperty('--type-bg',    t.bg);
+    stepCol.innerHTML = `
+      <div class="step-num" style="--type-color:${t.color};--type-bg:${t.bg}">${step.step}</div>
+      ${i < seq.length - 1 ? `<div class="step-line" style="background:linear-gradient(to bottom,${t.color},transparent)"></div>` : ''}
+    `;
+
+    // Table node
+    const tn = document.createElement('div');
+    tn.className = 'table-node';
+    tn.style.setProperty('--type-color', t.color);
+    tn.style.setProperty('--type-bg',    t.bg);
+
+    const bindingsHtml = step.bindings && step.bindings.length
+      ? `<div class="bindings-label">Bindings</div>
+         <div class="sql-block">${escHtml(JSON.stringify(step.bindings, null, 2))}</div>`
+      : '';
+
+    tn.innerHTML = `
+      <div class="table-node-header">
+        <span class="table-icon">${t.icon}</span>
+        <span class="table-name">${escHtml(step.table)}</span>
+        <span class="table-type-badge" style="background:${t.bg};color:${t.color}">${t.label}</span>
+        <span class="table-time">${step.time_ms.toFixed(2)} ms</span>
+      </div>
+      <div class="sql-detail">
+        <div class="sql-block">${escHtml(formatSql(step.sql))}</div>
+        ${bindingsHtml}
+      </div>
+    `;
+
+    tn.addEventListener('click', () => tn.classList.toggle('expanded'));
+
+    stepRow.appendChild(stepCol);
+    stepRow.appendChild(tn);
+    area.appendChild(stepRow);
+
+    setTimeout(() => tn.classList.add('visible'), delay);
+  });
+}
+
+function renderTableSummary(tables) {
+  const panel = $('tableSummaryPanel');
+  const body  = $('tableSummaryBody');
+  body.innerHTML = '';
+
+  const entries = Object.entries(tables);
+  if (!entries.length) { panel.style.display = 'none'; return; }
+
+  panel.style.display = 'block';
+
+  entries.forEach(([name, stats], i) => {
+    const row = document.createElement('div');
+    row.className = 'table-summary-row';
+    row.innerHTML = `
+      <span class="tsrow-name" title="${escHtml(name)}">${escHtml(name)}</span>
+      <div class="ts-pills">
+        ${stats.reads   ? `<span class="ts-pill read">R×${stats.reads}</span>` : ''}
+        ${stats.writes  ? `<span class="ts-pill write">W×${stats.writes}</span>` : ''}
+        ${stats.mutates ? `<span class="ts-pill mutate">M×${stats.mutates}</span>` : ''}
+      </div>
+    `;
+    body.appendChild(row);
+    setTimeout(() => row.classList.add('visible'), 200 + i * 50);
+  });
+}
+
+function renderTiming(sequence) {
+  const panel = $('timingPanel');
+  const list  = $('timingList');
+  list.innerHTML = '';
+
+  if (!sequence.length) { panel.style.display = 'none'; return; }
+
+  panel.style.display = 'block';
+
+  const maxMs = Math.max(...sequence.map(s => s.time_ms), 0.01);
+
+  sequence.forEach((step, i) => {
+    const t    = TYPE[step.type] || TYPE.other;
+    const pct  = Math.max((step.time_ms / maxMs) * 100, 3);
+    const row  = document.createElement('div');
+    row.className = 'timing-row';
+    row.innerHTML = `
+      <div class="timing-info">
+        <span class="timing-table" title="${escHtml(step.table)}">${step.step}. ${escHtml(step.table)}</span>
+        <span class="timing-ms">${step.time_ms.toFixed(2)} ms</span>
+      </div>
+      <div class="timing-bar-track">
+        <div class="timing-bar-fill" style="background:${t.color}" data-pct="${pct}"></div>
+      </div>
+    `;
+    list.appendChild(row);
+    setTimeout(() => {
+      row.classList.add('visible');
+      const fill = row.querySelector('.timing-bar-fill');
+      fill.style.width = fill.dataset.pct + '%';
+    }, 300 + i * 40);
+  });
+}
+
+// ── UI helpers ─────────────────────────────────────────────────────
+function setLoading(on) {
+  const btn = $('runBtn');
+  btn.disabled = on;
+  btn.classList.toggle('loading', on);
+}
+
+function clearResults() {
+  $('statsRow').innerHTML = '';
+  $('flowArea').innerHTML = '';
+  $('flowArea').style.display = 'none';
+  $('emptyState').style.display = 'flex';
+  $('tableSummaryPanel').style.display = 'none';
+  $('timingPanel').style.display = 'none';
+  $('tableSummaryBody').innerHTML = '';
+  $('timingList').innerHTML = '';
+  hideError();
+}
+
+function showError(result) {
+  const status = result.status || 0;
+  const msg    = result.error || 'Unknown error.';
+
+  $('errorTitle').textContent = status ? `HTTP ${status} — Trace Failed` : 'Trace Failed';
+  $('errorMsg').textContent   = ' ' + msg;
+  $('errorBanner').classList.add('visible');
+
+  // Show a contextual fix block for common errors.
+  const fix = $('errorFix');
+  const hints = {
+    302: `<strong>Auth redirect detected.</strong> The route requires a logged-in session.<br>
+          Paste your <code>laravel_session</code> and <code>XSRF-TOKEN</code> cookies into the Cookies field above. Click <a href="#" onclick="toggleCookieHelp(event); return false;">how?</a> for instructions.`,
+    301: `<strong>Redirect (301).</strong> The URL was permanently redirected — try the destination URL directly.`,
+    404: `<strong>Route not found.</strong> Check that the path is correct and the app server is running on the configured URL.`,
+    405: `<strong>Wrong HTTP method.</strong> The route exists but doesn\'t accept <strong>${result.method}</strong>. Try a different method (e.g. GET).`,
+    419: `<strong>CSRF mismatch.</strong> Paste your <code>XSRF-TOKEN</code> cookie into the Cookies field above.`,
+    500: `<strong>Server error (500).</strong> The app threw an exception. Check <code>storage/logs/laravel.log</code> for details.`,
+    0:   `<strong>Connection refused.</strong> Make sure <code>php artisan serve</code> is running and the App URL above is correct.`,
+  };
+
+  if (hints[status]) {
+    fix.innerHTML = hints[status];
+    fix.classList.add('visible');
+  } else {
+    fix.innerHTML = '';
+    fix.classList.remove('visible');
+  }
+}
+
+function hideError() {
+  $('errorBanner').classList.remove('visible');
+  $('errorFix').classList.remove('visible');
+}
+
+function toggleCookieHelp(e) {
+  e.preventDefault();
+  const box = $('cookieHelpBox');
+  box.style.display = box.style.display === 'none' ? 'block' : 'none';
+}
+
+// ── Formatting helpers ─────────────────────────────────────────────
+function escHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/**
+ * Very lightweight SQL formatter: uppercases keywords and adds newlines
+ * before SELECT, FROM, WHERE, JOIN, etc. for readability.
+ */
+function formatSql(sql) {
+  const keywords = /\b(SELECT|FROM|WHERE|JOIN|LEFT JOIN|RIGHT JOIN|INNER JOIN|OUTER JOIN|ON|AND|OR|INSERT INTO|VALUES|UPDATE|SET|DELETE FROM|GROUP BY|ORDER BY|HAVING|LIMIT|OFFSET|UNION|WITH)\b/gi;
+  return sql.replace(keywords, m => '\n' + m.toUpperCase()).trimStart();
+}
+
+// ── Event listeners ───────────────────────────────────────────────
+$('runBtn').addEventListener('click', runTrace);
+
+$('pathInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') runTrace();
+});
+
+// Persist app URL edits to localStorage
+$('appUrlInput').addEventListener('change', () => {
+  localStorage.setItem('db-tracer-app-url', $('appUrlInput').value);
+});
+
+// Persist cookie value to localStorage
+$('cookieInput').addEventListener('change', () => {
+  localStorage.setItem('db-tracer-cookies', $('cookieInput').value);
+});
+
+// Restore cookie from localStorage
+const savedCookies = localStorage.getItem('db-tracer-cookies');
+if (savedCookies) $('cookieInput').value = savedCookies;
+
+// ── Bootstrap ─────────────────────────────────────────────────────
+loadEnv();
+</script>
+</body>
+</html>
