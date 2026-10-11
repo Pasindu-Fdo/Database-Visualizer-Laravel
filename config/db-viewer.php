@@ -36,5 +36,8 @@ return [
 
         // Threshold for flagging repeated identical queries as an N+1 problem.
         'n_plus_one_threshold' => (int) env('DB_TRACER_N_PLUS_ONE_THRESHOLD', 3),
+
+        // Default IDE for code origin links (vscode, phpstorm, cursor, subl).
+        'ide' => env('DB_VIEWER_IDE', 'vscode'),
     ],
 ];

@@ -84,6 +84,7 @@ class DbTracerMiddleware
                 'connection' => $event->connectionName,
                 'type'       => $this->classifyQuery($event->sql),
                 'tables'     => $this->extractTables($event->sql),
+                'caller'     => $this->findQueryCaller(),
             ];
         });
 
@@ -231,14 +232,18 @@ class DbTracerMiddleware
                 $totalWaste += ($group['count'] - 1);
                 $totalN1Time += $group['total_time_ms'];
 
+                $firstCaller = $this->queries[$group['indices'][0]]['caller'] ?? null;
                 $tablesDesc = !empty($group['tables']) ? implode(', ', $group['tables']) : 'table';
+                $originDesc = $firstCaller ? " [Origin: {$firstCaller['short_path']}:{$firstCaller['line']}]" : '';
+
                 $alerts[] = [
                     'sql'           => $group['sql'],
                     'count'         => $group['count'],
                     'total_time_ms' => round($group['total_time_ms'], 2),
                     'tables'        => $group['tables'],
                     'fingerprint'   => $fingerprint,
-                    'suggestion'    => "Executed {$group['count']} times on {$tablesDesc}. Consider eager loading using ->with(...) or batch querying.",
+                    'caller'        => $firstCaller,
+                    'suggestion'    => "Executed {$group['count']} times on {$tablesDesc}{$originDesc}. Consider eager loading using ->with(...) or batch querying.",
                 ];
             }
         }
@@ -253,6 +258,61 @@ class DbTracerMiddleware
             'total_time_ms'       => round($totalN1Time, 2),
             'alerts'              => $alerts,
         ];
+    }
+
+    /**
+     * Inspect the call stack to identify the first application code origin.
+     *
+     * @return array{
+     *   file: string,
+     *   line: int,
+     *   short_path: string,
+     *   class: ?string,
+     *   function: ?string
+     * }|null
+     */
+    private function findQueryCaller(): ?array
+    {
+        $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+        $basePath = function_exists('base_path') ? base_path() : '';
+
+        foreach ($trace as $frame) {
+            $file = $frame['file'] ?? null;
+            $line = $frame['line'] ?? null;
+
+            if (!$file || !$line) {
+                continue;
+            }
+
+            $normalizedFile = str_replace('\\', '/', $file);
+
+            // Filter out vendor dependencies, framework code, and package internals
+            if (
+                str_contains($normalizedFile, '/vendor/') ||
+                str_contains($normalizedFile, '/database-visualizer-laravel/') ||
+                str_contains($normalizedFile, 'DbTracerMiddleware.php')
+            ) {
+                continue;
+            }
+
+            $shortPath = $normalizedFile;
+            if ($basePath !== '') {
+                $normalizedBase = str_replace('\\', '/', $basePath);
+                if (str_starts_with($normalizedFile, $normalizedBase)) {
+                    $shortPath = ltrim(substr($normalizedFile, strlen($normalizedBase)), '/');
+                }
+            }
+
+            return [
+                'file'       => $file,
+                'line'       => (int) $line,
+                'short_path' => $shortPath,
+                'class'      => $frame['class'] ?? null,
+                'function'   => $frame['function'] ?? null,
+            ];
+        }
+
+        return null;
     }
 
     /**

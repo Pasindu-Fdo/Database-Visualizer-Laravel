@@ -489,6 +489,72 @@
       display: none !important;
     }
 
+    /* ─── Caller Pill / Code Origin ─────────────────────────── */
+    .caller-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      color: #334155;
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 3px 8px;
+      text-decoration: none;
+      margin-top: 6px;
+      transition: all 0.15s ease;
+      cursor: pointer;
+      max-width: 100%;
+      overflow: hidden;
+    }
+
+    .caller-pill:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+      border-color: #94a3b8;
+    }
+
+    .caller-icon {
+      flex-shrink: 0;
+      opacity: 0.7;
+    }
+
+    .caller-file {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .caller-jump {
+      font-size: 10px;
+      opacity: 0.6;
+      flex-shrink: 0;
+    }
+
+    .ide-picker {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    .ide-select {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text);
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 5px 8px;
+      cursor: pointer;
+      outline: none;
+    }
+
     /* ─── Stats Row ──────────────────────────────────────────── */
     .stats-row {
       display: flex;
@@ -1016,6 +1082,15 @@
     <span class="header-badge">Route Tracer</span>
 
     <nav class="header-nav">
+      <div class="ide-picker" title="Preferred code editor for stack trace links">
+        <span>Editor:</span>
+        <select id="ideSelect" class="ide-select" onchange="changeIde(this.value)" aria-label="Preferred IDE">
+          <option value="vscode">VS Code</option>
+          <option value="phpstorm">PhpStorm</option>
+          <option value="cursor">Cursor</option>
+          <option value="subl">Sublime</option>
+        </select>
+      </div>
       <a href="/" class="nav-btn">Schema</a>
       <a href="/tracer.html" class="nav-btn primary">Route Tracer</a>
     </nav>
@@ -1168,11 +1243,43 @@ async function loadEnv() {
     if (data.app_url) {
       $('appUrlInput').value = data.app_url;
     }
+    const savedIde = localStorage.getItem('db_tracer_ide') || data.ide || 'vscode';
+    if ($('ideSelect')) {
+      $('ideSelect').value = savedIde;
+    }
     if (data.tracer_enabled === false) {
       showError('Tracer Disabled', 'Set DB_TRACER_ENABLED=true in your .env to enable tracing.');
     }
   } catch (_) {
     $('appUrlInput').value = 'http://127.0.0.1:8000';
+    const savedIde = localStorage.getItem('db_tracer_ide') || 'vscode';
+    if ($('ideSelect')) {
+      $('ideSelect').value = savedIde;
+    }
+  }
+}
+
+function changeIde(ide) {
+  localStorage.setItem('db_tracer_ide', ide);
+  if (lastResult) {
+    renderResults(lastResult);
+  }
+}
+
+function getIdeUrl(file, line) {
+  if (!file) return '#';
+  const ide = $('ideSelect')?.value || localStorage.getItem('db_tracer_ide') || 'vscode';
+  const targetLine = line || 1;
+  switch (ide) {
+    case 'phpstorm':
+      return `phpstorm://open?file=${encodeURIComponent(file)}&line=${targetLine}`;
+    case 'cursor':
+      return `cursor://file/${file}:${targetLine}`;
+    case 'subl':
+      return `subl://open?url=file://${encodeURIComponent(file)}&line=${targetLine}`;
+    case 'vscode':
+    default:
+      return `vscode://file/${file}:${targetLine}`;
   }
 }
 
@@ -1235,6 +1342,21 @@ function renderNPlusOne(n1) {
   n1.alerts.forEach(alert => {
     const item = document.createElement('div');
     item.className = 'n-plus-one-item';
+
+    let callerLink = '';
+    if (alert.caller && alert.caller.file) {
+      const c = alert.caller;
+      const ideUrl = getIdeUrl(c.file, c.line);
+      const ideName = $('ideSelect')?.options?.[$('ideSelect')?.selectedIndex]?.text || 'IDE';
+      callerLink = `
+        <a href="${ideUrl}" class="caller-pill" style="margin-top:6px;display:inline-flex;" title="Open in ${ideName} (${escHtml(c.file)}:${c.line})" onclick="event.stopPropagation()">
+          <span class="caller-icon">📍</span>
+          <span class="caller-file">Origin: ${escHtml(c.short_path)}:${c.line}</span>
+          <span class="caller-jump">↗</span>
+        </a>
+      `;
+    }
+
     item.innerHTML = `
       <div class="n-plus-one-item-header">
         <span class="n-plus-one-item-count">⚠️ Executed ${alert.count}× identical queries</span>
@@ -1242,6 +1364,7 @@ function renderNPlusOne(n1) {
       </div>
       <div class="n-plus-one-item-sql">${escHtml(alert.sql)}</div>
       <div class="n-plus-one-item-tip">💡 ${escHtml(alert.suggestion)}</div>
+      ${callerLink}
     `;
     list.appendChild(item);
   });
@@ -1375,6 +1498,20 @@ function renderFlow(data) {
       duplicateBadgeHtml = `<span class="duplicate-badge" title="Duplicate query: ${step.duplicate_count} identical queries executed">⚡ ${step.duplicate_count}×</span>`;
     }
 
+    let callerPillHtml = '';
+    if (step.caller && step.caller.file) {
+      const c = step.caller;
+      const ideUrl = getIdeUrl(c.file, c.line);
+      const ideName = $('ideSelect')?.options?.[$('ideSelect')?.selectedIndex]?.text || 'IDE';
+      callerPillHtml = `
+        <a href="${ideUrl}" class="caller-pill" title="Click to open ${escHtml(c.file)}:${c.line} in ${ideName}" onclick="event.stopPropagation()">
+          <span class="caller-icon">📍</span>
+          <span class="caller-file">${escHtml(c.short_path)}:${c.line}</span>
+          <span class="caller-jump">↗</span>
+        </a>
+      `;
+    }
+
     tn.innerHTML = `
       <div class="table-node-header">
         <span class="table-name">${escHtml(step.table)}</span>
@@ -1382,6 +1519,7 @@ function renderFlow(data) {
         ${duplicateBadgeHtml}
         <span class="table-time">${step.time_ms.toFixed(2)} ms</span>
       </div>
+      ${callerPillHtml}
       <div class="sql-detail">
         <div class="sql-block">${escHtml(formatSql(step.sql))}</div>
         ${bindingsHtml}

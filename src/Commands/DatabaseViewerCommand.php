@@ -29,6 +29,7 @@ class DatabaseViewerCommand extends Command
             'tracer_enabled'  => $tracerEnabled,
             'timeout_seconds' => config('db-viewer.tracer.timeout_seconds', 30),
             'auth_user_id'    => config('db-viewer.tracer.auth_user_id', 1),
+            'ide'             => config('db-viewer.tracer.ide', 'vscode'),
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
         $public = realpath(__DIR__.'/../../resources/public');

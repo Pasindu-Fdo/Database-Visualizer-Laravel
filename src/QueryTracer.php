@@ -229,6 +229,7 @@ class QueryTracer
                     'is_duplicate'    => $query['is_duplicate']    ?? false,
                     'is_n_plus_one'   => $query['is_n_plus_one']   ?? false,
                     'duplicate_count' => $query['duplicate_count'] ?? 1,
+                    'caller'          => $query['caller']          ?? null,
                 ];
             }
         }
