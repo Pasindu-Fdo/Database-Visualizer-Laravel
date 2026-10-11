@@ -33,5 +33,8 @@ return [
         // - Specific integer (e.g. 1): Logs in as that specific User ID.
         // - 0 or false: Disables auto-authentication.
         'auth_user_id'    => env('DB_TRACER_AUTH_USER_ID', 'auto'),
+
+        // Threshold for flagging repeated identical queries as an N+1 problem.
+        'n_plus_one_threshold' => (int) env('DB_TRACER_N_PLUS_ONE_THRESHOLD', 3),
     ],
 ];

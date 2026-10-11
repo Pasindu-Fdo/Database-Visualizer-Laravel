@@ -322,6 +322,173 @@
 
     .error-banner strong { color: var(--rose); display: block; margin-bottom: 2px; }
 
+    /* ─── N+1 Problem Banner ─────────────────────────────────── */
+    .n-plus-one-banner {
+      display: none;
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(245,158,11,0.06);
+    }
+
+    .n-plus-one-banner.visible { display: block; }
+
+    .n-plus-one-banner-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .n-plus-one-title-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .n-plus-one-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: #f59e0b;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .n-plus-one-headline {
+      font-size: 13px;
+      font-weight: 600;
+      color: #92400e;
+    }
+
+    .n-plus-one-filter-btn {
+      font-size: 11px;
+      font-weight: 600;
+      color: #92400e;
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
+      padding: 5px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .n-plus-one-filter-btn:hover {
+      background: #fde68a;
+      color: #78350f;
+    }
+
+    .n-plus-one-filter-btn.active {
+      background: #92400e;
+      color: #ffffff;
+      border-color: #78350f;
+    }
+
+    .n-plus-one-list {
+      margin-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .n-plus-one-item {
+      background: #ffffff;
+      border: 1px solid #fef08a;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 12px;
+    }
+
+    .n-plus-one-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .n-plus-one-item-count {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      color: #b45309;
+      font-size: 12px;
+    }
+
+    .n-plus-one-item-time {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .n-plus-one-item-sql {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #1e293b;
+      background: #f8fafc;
+      padding: 6px 10px;
+      border-radius: 4px;
+      border: 1px solid #e2e8f0;
+      word-break: break-all;
+      margin: 4px 0 6px;
+    }
+
+    .n-plus-one-item-tip {
+      font-size: 11px;
+      color: #78350f;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    /* Step badges */
+    .n1-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      background: #fef3c7;
+      color: #b45309;
+      border: 1px solid #fde68a;
+      border-radius: 999px;
+      padding: 2px 7px;
+      letter-spacing: 0.03em;
+    }
+
+    .duplicate-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #e2e8f0;
+      border-radius: 999px;
+      padding: 2px 6px;
+    }
+
+    .table-node.is-n1 {
+      border-left: 3px solid #f59e0b;
+    }
+
+    .step-row.filtered-out,
+    .connector.filtered-out,
+    .timing-row.filtered-out {
+      display: none !important;
+    }
+
     /* ─── Stats Row ──────────────────────────────────────────── */
     .stats-row {
       display: flex;
@@ -904,6 +1071,20 @@
       <div id="errorFix" class="error-fix"></div>
     </div>
 
+    <!-- N+1 Alert Banner -->
+    <div id="nPlusOneBanner" class="n-plus-one-banner" role="alert">
+      <div class="n-plus-one-banner-header">
+        <div class="n-plus-one-title-group">
+          <span class="n-plus-one-badge">⚠️ N+1 Detected</span>
+          <span class="n-plus-one-headline" id="nPlusOneHeadline"></span>
+        </div>
+        <button id="toggleN1FilterBtn" class="n-plus-one-filter-btn" type="button" onclick="toggleN1Filter()">
+          <span>Filter N+1 Queries</span>
+        </button>
+      </div>
+      <div class="n-plus-one-list" id="nPlusOneList"></div>
+    </div>
+
     <!-- Stats row -->
     <div class="stats-row" id="statsRow" aria-live="polite"></div>
 
@@ -977,6 +1158,7 @@ const TYPE = {
 
 // ── State ─────────────────────────────────────────────────────────
 let lastResult = null;
+let isN1FilterActive = false;
 
 // ── Init: load app URL from server env ───────────────────────────
 async function loadEnv() {
@@ -1028,10 +1210,49 @@ async function runTrace() {
 
 // ── Render results ────────────────────────────────────────────────
 function renderResults(data) {
+  renderNPlusOne(data.n_plus_one);
   renderStats(data);
   renderFlow(data);
   renderTableSummary(data.tables || {});
   renderTiming(data.sequence || []);
+}
+
+function renderNPlusOne(n1) {
+  const banner = $('nPlusOneBanner');
+  const headline = $('nPlusOneHeadline');
+  const list = $('nPlusOneList');
+  const filterBtn = $('toggleN1FilterBtn');
+
+  if (!n1 || !n1.detected || !n1.alerts || !n1.alerts.length) {
+    banner.classList.remove('visible');
+    list.innerHTML = '';
+    return;
+  }
+
+  headline.textContent = `${n1.count} N+1 pattern(s) detected • ${n1.total_waste_queries} duplicate executions (${n1.total_time_ms} ms wasted)`;
+  list.innerHTML = '';
+
+  n1.alerts.forEach(alert => {
+    const item = document.createElement('div');
+    item.className = 'n-plus-one-item';
+    item.innerHTML = `
+      <div class="n-plus-one-item-header">
+        <span class="n-plus-one-item-count">⚠️ Executed ${alert.count}× identical queries</span>
+        <span class="n-plus-one-item-time">${alert.total_time_ms} ms total</span>
+      </div>
+      <div class="n-plus-one-item-sql">${escHtml(alert.sql)}</div>
+      <div class="n-plus-one-item-tip">💡 ${escHtml(alert.suggestion)}</div>
+    `;
+    list.appendChild(item);
+  });
+
+  banner.classList.add('visible');
+  if (filterBtn) {
+    filterBtn.classList.remove('active');
+    const span = filterBtn.querySelector('span');
+    if (span) span.textContent = 'Filter N+1 Queries';
+  }
+  isN1FilterActive = false;
 }
 
 function renderStats(data) {
@@ -1050,6 +1271,13 @@ function renderStats(data) {
     { dot: TYPE.write.color,  label: `${writes} inserts` },
     { dot: TYPE.mutate.color, label: `${muts} mutates` },
   ];
+
+  if (data.n_plus_one && data.n_plus_one.detected) {
+    chips.push({
+      dot: '#f59e0b',
+      label: `⚠️ ${data.n_plus_one.count} N+1 (${data.n_plus_one.total_waste_queries + data.n_plus_one.count} queries)`,
+    });
+  }
 
   const row = $('statsRow');
   row.innerHTML = '';
@@ -1104,6 +1332,7 @@ function renderFlow(data) {
     // Connector
     const conn = document.createElement('div');
     conn.className = 'connector';
+    conn.dataset.isN1 = step.is_n_plus_one ? 'true' : 'false';
     conn.style.setProperty('--type-color', t.color);
     conn.style.setProperty('--type-bg',    t.bg);
     conn.innerHTML = `
@@ -1116,6 +1345,8 @@ function renderFlow(data) {
     // Step row
     const stepRow = document.createElement('div');
     stepRow.className = 'step-row';
+    stepRow.dataset.isN1 = step.is_n_plus_one ? 'true' : 'false';
+    stepRow.dataset.fingerprint = step.fingerprint || '';
 
     const stepCol = document.createElement('div');
     stepCol.className = 'step-col';
@@ -1128,7 +1359,7 @@ function renderFlow(data) {
 
     // Table node
     const tn = document.createElement('div');
-    tn.className = 'table-node';
+    tn.className = 'table-node' + (step.is_n_plus_one ? ' is-n1' : '');
     tn.style.setProperty('--type-color', t.color);
     tn.style.setProperty('--type-bg',    t.bg);
 
@@ -1137,10 +1368,18 @@ function renderFlow(data) {
          <div class="sql-block">${escHtml(JSON.stringify(step.bindings, null, 2))}</div>`
       : '';
 
+    let duplicateBadgeHtml = '';
+    if (step.is_n_plus_one) {
+      duplicateBadgeHtml = `<span class="n1-badge" title="N+1 Detected: ${step.duplicate_count} identical queries executed">⚠️ N+1 (${step.duplicate_count}×)</span>`;
+    } else if (step.is_duplicate) {
+      duplicateBadgeHtml = `<span class="duplicate-badge" title="Duplicate query: ${step.duplicate_count} identical queries executed">⚡ ${step.duplicate_count}×</span>`;
+    }
+
     tn.innerHTML = `
       <div class="table-node-header">
         <span class="table-name">${escHtml(step.table)}</span>
         <span class="table-type-badge" style="color:${t.color}">${t.label}</span>
+        ${duplicateBadgeHtml}
         <span class="table-time">${step.time_ms.toFixed(2)} ms</span>
       </div>
       <div class="sql-detail">
@@ -1201,9 +1440,13 @@ function renderTiming(sequence) {
     const pct  = Math.max((step.time_ms / maxMs) * 100, 3);
     const row  = document.createElement('div');
     row.className = 'timing-row';
+    row.dataset.isN1 = step.is_n_plus_one ? 'true' : 'false';
+
+    const n1Badge = step.is_n_plus_one ? ' <span style="color:#b45309;font-weight:700">⚠️ N+1</span>' : '';
+
     row.innerHTML = `
       <div class="timing-info">
-        <span class="timing-table" title="${escHtml(step.table)}">${step.step}. ${escHtml(step.table)}</span>
+        <span class="timing-table" title="${escHtml(step.table)}">${step.step}. ${escHtml(step.table)}${n1Badge}</span>
         <span class="timing-ms">${step.time_ms.toFixed(2)} ms</span>
       </div>
       <div class="timing-bar-track">
@@ -1216,6 +1459,41 @@ function renderTiming(sequence) {
       const fill = row.querySelector('.timing-bar-fill');
       fill.style.width = fill.dataset.pct + '%';
     }, 300 + i * 40);
+  });
+}
+
+// ── N+1 Filter Toggle ──────────────────────────────────────────────
+function toggleN1Filter() {
+  isN1FilterActive = !isN1FilterActive;
+  const btn = $('toggleN1FilterBtn');
+  if (btn) {
+    btn.classList.toggle('active', isN1FilterActive);
+    const span = btn.querySelector('span');
+    if (span) span.textContent = isN1FilterActive ? 'Show All Queries' : 'Filter N+1 Queries';
+  }
+
+  document.querySelectorAll('.step-row').forEach(row => {
+    if (isN1FilterActive && row.dataset.isN1 !== 'true') {
+      row.classList.add('filtered-out');
+    } else {
+      row.classList.remove('filtered-out');
+    }
+  });
+
+  document.querySelectorAll('.connector').forEach(conn => {
+    if (isN1FilterActive && conn.dataset.isN1 !== 'true') {
+      conn.classList.add('filtered-out');
+    } else {
+      conn.classList.remove('filtered-out');
+    }
+  });
+
+  document.querySelectorAll('.timing-row').forEach(row => {
+    if (isN1FilterActive && row.dataset.isN1 !== 'true') {
+      row.classList.add('filtered-out');
+    } else {
+      row.classList.remove('filtered-out');
+    }
   });
 }
 
@@ -1235,6 +1513,14 @@ function clearResults() {
   $('timingPanel').style.display = 'none';
   $('tableSummaryBody').innerHTML = '';
   $('timingList').innerHTML = '';
+
+  const banner = $('nPlusOneBanner');
+  if (banner) {
+    banner.classList.remove('visible');
+    $('nPlusOneList').innerHTML = '';
+  }
+  isN1FilterActive = false;
+
   hideError();
 }
 

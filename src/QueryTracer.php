@@ -130,9 +130,16 @@ class QueryTracer
             ];
         }
 
-        $queries  = $traceData['queries']  ?? [];
-        $tables   = $traceData['tables']   ?? [];
-        $sequence = $this->buildSequence($queries);
+        $queries   = $traceData['queries']   ?? [];
+        $tables    = $traceData['tables']    ?? [];
+        $nPlusOne  = $traceData['n_plus_one'] ?? [
+            'detected'            => false,
+            'count'               => 0,
+            'total_waste_queries' => 0,
+            'total_time_ms'       => 0.0,
+            'alerts'              => [],
+        ];
+        $sequence  = $this->buildSequence($queries);
 
         return [
             'ok'          => true,
@@ -142,6 +149,7 @@ class QueryTracer
             'duration_ms' => $traceData['duration_ms'] ?? $durationMs,
             'queries'     => $queries,
             'tables'      => $tables,
+            'n_plus_one'  => $nPlusOne,
             'sequence'    => $sequence,
         ];
     }
@@ -211,12 +219,16 @@ class QueryTracer
 
             foreach ($tables as $table) {
                 $sequence[] = [
-                    'step'     => $step++,
-                    'table'    => $table,
-                    'type'     => $query['type']    ?? 'other',
-                    'sql'      => $query['sql']      ?? '',
-                    'bindings' => $query['bindings'] ?? [],
-                    'time_ms'  => $query['time_ms']  ?? 0,
+                    'step'            => $step++,
+                    'table'           => $table,
+                    'type'            => $query['type']            ?? 'other',
+                    'sql'             => $query['sql']             ?? '',
+                    'bindings'        => $query['bindings']        ?? [],
+                    'time_ms'         => $query['time_ms']         ?? 0,
+                    'fingerprint'     => $query['fingerprint']     ?? null,
+                    'is_duplicate'    => $query['is_duplicate']    ?? false,
+                    'is_n_plus_one'   => $query['is_n_plus_one']   ?? false,
+                    'duplicate_count' => $query['duplicate_count'] ?? 1,
                 ];
             }
         }

@@ -92,6 +92,9 @@ class DbTracerMiddleware
 
         $totalMs = (int) round((hrtime(true) - $startTime) / 1_000_000);
 
+        // Analyze queries for duplicate / N+1 patterns
+        $nPlusOneData = $this->analyzeNPlusOne();
+
         $payload = json_encode([
             'url'         => $request->getRequestUri(),
             'method'      => $request->method(),
@@ -99,6 +102,7 @@ class DbTracerMiddleware
             'duration_ms' => $totalMs,
             'queries'     => $this->queries,
             'tables'      => $this->buildTableSummary(),
+            'n_plus_one'  => $nPlusOneData,
         ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
         // Base64-encode so special characters don't break the header.
@@ -169,4 +173,96 @@ class DbTracerMiddleware
 
         return $summary;
     }
+
+    /**
+     * Analyze captured queries to detect duplicate executions and potential N+1 query problems.
+     *
+     * @return array{
+     *   detected: bool,
+     *   count: int,
+     *   total_waste_queries: int,
+     *   total_time_ms: float,
+     *   alerts: list<array{sql: string, count: int, total_time_ms: float, tables: string[], fingerprint: string, suggestion: string}>
+     * }
+     */
+    private function analyzeNPlusOne(): array
+    {
+        $threshold = max(2, (int) (function_exists('config') ? config('db-viewer.tracer.n_plus_one_threshold', 3) : 3));
+        $groups = [];
+
+        foreach ($this->queries as $index => $query) {
+            $normalized = $this->normalizeSql($query['sql']);
+            $fingerprint = md5(($query['connection'] ?? 'default') . ':' . strtolower($normalized));
+
+            if (!isset($groups[$fingerprint])) {
+                $groups[$fingerprint] = [
+                    'fingerprint'   => $fingerprint,
+                    'sql'           => $query['sql'],
+                    'normalized'    => $normalized,
+                    'count'         => 0,
+                    'total_time_ms' => 0.0,
+                    'tables'        => $query['tables'] ?? [],
+                    'indices'       => [],
+                ];
+            }
+
+            $groups[$fingerprint]['count']++;
+            $groups[$fingerprint]['total_time_ms'] += (float) ($query['time_ms'] ?? 0);
+            $groups[$fingerprint]['indices'][] = $index;
+        }
+
+        $alerts = [];
+        $totalWaste = 0;
+        $totalN1Time = 0.0;
+
+        foreach ($groups as $fingerprint => $group) {
+            $isDuplicate = $group['count'] > 1;
+            $isNPlusOne  = $group['count'] >= $threshold;
+
+            // Annotate individual queries in the timeline
+            foreach ($group['indices'] as $idx) {
+                $this->queries[$idx]['fingerprint']     = $fingerprint;
+                $this->queries[$idx]['duplicate_count'] = $group['count'];
+                $this->queries[$idx]['is_duplicate']    = $isDuplicate;
+                $this->queries[$idx]['is_n_plus_one']   = $isNPlusOne;
+            }
+
+            if ($isNPlusOne) {
+                $totalWaste += ($group['count'] - 1);
+                $totalN1Time += $group['total_time_ms'];
+
+                $tablesDesc = !empty($group['tables']) ? implode(', ', $group['tables']) : 'table';
+                $alerts[] = [
+                    'sql'           => $group['sql'],
+                    'count'         => $group['count'],
+                    'total_time_ms' => round($group['total_time_ms'], 2),
+                    'tables'        => $group['tables'],
+                    'fingerprint'   => $fingerprint,
+                    'suggestion'    => "Executed {$group['count']} times on {$tablesDesc}. Consider eager loading using ->with(...) or batch querying.",
+                ];
+            }
+        }
+
+        // Sort alerts by count descending (highest offenders first)
+        usort($alerts, fn ($a, $b) => $b['count'] <=> $a['count']);
+
+        return [
+            'detected'            => !empty($alerts),
+            'count'               => count($alerts),
+            'total_waste_queries' => $totalWaste,
+            'total_time_ms'       => round($totalN1Time, 2),
+            'alerts'              => $alerts,
+        ];
+    }
+
+    /**
+     * Normalize SQL query for pattern fingerprinting.
+     */
+    private function normalizeSql(string $sql): string
+    {
+        $normalized = trim(preg_replace('/\s+/', ' ', $sql) ?? '');
+        // Collapse multiple IN parameter placeholders: IN (?, ?, ?) -> IN (?)
+        return preg_replace('/\bIN\s*\(\s*\?(?:\s*,\s*\?)*\s*\)/i', 'IN (?)', $normalized) ?? $normalized;
+    }
 }
+
