@@ -230,6 +230,10 @@ class QueryTracer
                     'is_n_plus_one'   => $query['is_n_plus_one']   ?? false,
                     'duplicate_count' => $query['duplicate_count'] ?? 1,
                     'caller'          => $query['caller']          ?? null,
+                    'is_slow'         => $query['is_slow']         ?? false,
+                    'explain'         => $query['explain']         ?? null,
+                    'full_table_scan' => $query['full_table_scan'] ?? false,
+                    'missing_index'   => $query['missing_index']   ?? false,
                 ];
             }
         }

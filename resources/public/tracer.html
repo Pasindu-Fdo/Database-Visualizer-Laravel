@@ -555,6 +555,131 @@
       outline: none;
     }
 
+    /* ─── Slow Query & EXPLAIN Badges ────────────────────────── */
+    .slow-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      background: #fff1f2;
+      color: #e11d48;
+      border: 1px solid #fecdd3;
+      border-radius: 999px;
+      padding: 2px 7px;
+    }
+
+    .scan-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      background: #fef2f2;
+      color: #dc2626;
+      border: 1px solid #fca5a5;
+      border-radius: 999px;
+      padding: 2px 7px;
+    }
+
+    .index-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      background: #fefce8;
+      color: #ca8a04;
+      border: 1px solid #fef08a;
+      border-radius: 999px;
+      padding: 2px 7px;
+    }
+
+    .explain-container {
+      margin-top: 10px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 10px 12px;
+    }
+
+    .explain-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .explain-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .scan-alert-pill {
+      font-size: 10px;
+      font-weight: 700;
+      background: #fee2e2;
+      color: #b91c1c;
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+
+    .index-ok-pill {
+      font-size: 10px;
+      font-weight: 700;
+      background: #dcfce7;
+      color: #15803d;
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+
+    .scan-warning-callout {
+      font-size: 11px;
+      color: #991b1b;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 4px;
+      padding: 6px 10px;
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+
+    .explain-table-wrap {
+      overflow-x: auto;
+      max-width: 100%;
+    }
+
+    .explain-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      text-align: left;
+    }
+
+    .explain-table th {
+      background: #f1f5f9;
+      color: #475569;
+      padding: 5px 8px;
+      border: 1px solid #e2e8f0;
+      font-weight: 600;
+      font-size: 10px;
+      white-space: nowrap;
+    }
+
+    .explain-table td {
+      padding: 5px 8px;
+      border: 1px solid #e2e8f0;
+      color: #1e293b;
+      background: #ffffff;
+      white-space: nowrap;
+    }
+
     /* ─── Stats Row ──────────────────────────────────────────── */
     .stats-row {
       display: flex;
@@ -1402,6 +1527,21 @@ function renderStats(data) {
     });
   }
 
+  const slowCount = (data.queries || []).filter(q => q.is_slow).length;
+  const scanCount = (data.queries || []).filter(q => q.full_table_scan).length;
+
+  if (scanCount > 0) {
+    chips.push({
+      dot: '#dc2626',
+      label: `🚨 ${scanCount} Full Table Scan${scanCount === 1 ? '' : 's'}`,
+    });
+  } else if (slowCount > 0) {
+    chips.push({
+      dot: '#e11d48',
+      label: `⏱️ ${slowCount} slow query${slowCount === 1 ? '' : 'ies'}`,
+    });
+  }
+
   const row = $('statsRow');
   row.innerHTML = '';
 
@@ -1498,6 +1638,18 @@ function renderFlow(data) {
       duplicateBadgeHtml = `<span class="duplicate-badge" title="Duplicate query: ${step.duplicate_count} identical queries executed">⚡ ${step.duplicate_count}×</span>`;
     }
 
+    let slowBadgeHtml = '';
+    if (step.is_slow) {
+      slowBadgeHtml = `<span class="slow-badge" title="Slow Query: execution took ${step.time_ms.toFixed(1)} ms">⏱️ Slow</span>`;
+    }
+
+    let scanBadgeHtml = '';
+    if (step.full_table_scan) {
+      scanBadgeHtml = `<span class="scan-badge" title="Full Table Scan: No index was used for this query">🚨 Full Table Scan</span>`;
+    } else if (step.missing_index) {
+      scanBadgeHtml = `<span class="index-badge" title="Possible missing index on filtered columns">⚠️ Missing Index</span>`;
+    }
+
     let callerPillHtml = '';
     if (step.caller && step.caller.file) {
       const c = step.caller;
@@ -1512,17 +1664,44 @@ function renderFlow(data) {
       `;
     }
 
+    let explainHtml = '';
+    if (step.explain && step.explain.length) {
+      const rows = step.explain;
+      const columns = Object.keys(rows[0] || {});
+      const ths = columns.map(col => `<th>${escHtml(col)}</th>`).join('');
+      const trs = rows.map(r => `<tr>${columns.map(c => `<td>${escHtml(String(r[c] !== null && r[c] !== undefined ? r[c] : '-'))}</td>`).join('')}</tr>`).join('');
+
+      explainHtml = `
+        <div class="explain-container" onclick="event.stopPropagation()">
+          <div class="explain-header">
+            <span class="explain-title">📊 EXPLAIN Query Plan</span>
+            ${step.full_table_scan ? '<span class="scan-alert-pill">Full Table Scan</span>' : '<span class="index-ok-pill">Index Used</span>'}
+          </div>
+          ${step.full_table_scan ? '<div class="scan-warning-callout">⚠️ <strong>Full Table Scan:</strong> Every row was scanned sequentially. Consider adding an index on the filtered / joined columns.</div>' : ''}
+          <div class="explain-table-wrap">
+            <table class="explain-table">
+              <thead><tr>${ths}</tr></thead>
+              <tbody>${trs}</tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
     tn.innerHTML = `
       <div class="table-node-header">
         <span class="table-name">${escHtml(step.table)}</span>
         <span class="table-type-badge" style="color:${t.color}">${t.label}</span>
         ${duplicateBadgeHtml}
+        ${slowBadgeHtml}
+        ${scanBadgeHtml}
         <span class="table-time">${step.time_ms.toFixed(2)} ms</span>
       </div>
       ${callerPillHtml}
       <div class="sql-detail">
         <div class="sql-block">${escHtml(formatSql(step.sql))}</div>
         ${bindingsHtml}
+        ${explainHtml}
       </div>
     `;
 

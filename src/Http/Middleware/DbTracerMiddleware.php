@@ -75,16 +75,30 @@ class DbTracerMiddleware
 
         // ── 3. Query capture ───────────────────────────────────────────────
         $startTime = hrtime(true);
+        $slowThreshold = (float) (function_exists('config') ? config('db-viewer.tracer.slow_query_threshold_ms', 10.0) : 10.0);
+        $explainSlow = (bool) (function_exists('config') ? config('db-viewer.tracer.explain_slow_queries', true) : true);
 
-        DB::listen(function (QueryExecuted $event) {
+        DB::listen(function (QueryExecuted $event) use ($slowThreshold, $explainSlow) {
+            $isSlow = (float) $event->time >= $slowThreshold;
+            $type = $this->classifyQuery($event->sql);
+            $explainResult = null;
+
+            if ($explainSlow && $isSlow && $type === 'read') {
+                $explainResult = $this->explainQuery($event->connectionName, $event->sql, $event->bindings);
+            }
+
             $this->queries[] = [
-                'sql'        => $event->sql,
-                'bindings'   => $event->bindings,
-                'time_ms'    => $event->time,
-                'connection' => $event->connectionName,
-                'type'       => $this->classifyQuery($event->sql),
-                'tables'     => $this->extractTables($event->sql),
-                'caller'     => $this->findQueryCaller(),
+                'sql'             => $event->sql,
+                'bindings'        => $event->bindings,
+                'time_ms'         => $event->time,
+                'connection'      => $event->connectionName,
+                'type'            => $type,
+                'tables'          => $this->extractTables($event->sql),
+                'caller'          => $this->findQueryCaller(),
+                'is_slow'         => $isSlow,
+                'explain'         => $explainResult['plan'] ?? null,
+                'full_table_scan' => $explainResult['full_table_scan'] ?? false,
+                'missing_index'   => $explainResult['missing_index'] ?? false,
             ];
         });
 
@@ -324,5 +338,78 @@ class DbTracerMiddleware
         // Collapse multiple IN parameter placeholders: IN (?, ?, ?) -> IN (?)
         return preg_replace('/\bIN\s*\(\s*\?(?:\s*,\s*\?)*\s*\)/i', 'IN (?)', $normalized) ?? $normalized;
     }
+
+    /**
+     * Safely run EXPLAIN on a SELECT statement and analyze for full table scans.
+     *
+     * @param string $connectionName
+     * @param string $sql
+     * @param array $bindings
+     * @return array{plan: list<array<string,mixed>>, full_table_scan: bool, missing_index: bool}|null
+     */
+    private function explainQuery(string $connectionName, string $sql, array $bindings): ?array
+    {
+        // Safety guard: only explain pure SELECT queries
+        if (stripos(ltrim($sql), 'SELECT') !== 0) {
+            return null;
+        }
+
+        try {
+            $connection = DB::connection($connectionName);
+            $driver = strtolower($connection->getDriverName());
+
+            $explainSql = match ($driver) {
+                'sqlite' => 'EXPLAIN QUERY PLAN ' . $sql,
+                default  => 'EXPLAIN ' . $sql,
+            };
+
+            $rawRows = $connection->select($explainSql, $bindings);
+
+            if (empty($rawRows)) {
+                return null;
+            }
+
+            $plan = array_map(fn ($r) => (array) $r, $rawRows);
+            $fullTableScan = false;
+            $missingIndex = false;
+
+            if ($driver === 'sqlite') {
+                foreach ($plan as $row) {
+                    $detail = $row['detail'] ?? '';
+                    if (preg_match('/\bSCAN\b/i', $detail) && !preg_match('/\bUSING INDEX\b/i', $detail)) {
+                        $fullTableScan = true;
+                        $missingIndex = true;
+                        break;
+                    }
+                }
+            } elseif ($driver === 'mysql' || $driver === 'mariadb') {
+                foreach ($plan as $row) {
+                    $type = strtolower((string) ($row['type'] ?? ''));
+                    if ($type === 'all') {
+                        $fullTableScan = true;
+                    }
+                    if (empty($row['key']) && empty($row['possible_keys'])) {
+                        $missingIndex = true;
+                    }
+                }
+            } elseif (in_array($driver, ['pgsql', 'postgres', 'postgresql'], true)) {
+                foreach ($plan as $row) {
+                    $line = strtolower(implode(' ', array_values($row)));
+                    if (str_contains($line, 'seq scan')) {
+                        $fullTableScan = true;
+                    }
+                }
+            }
+
+            return [
+                'plan'            => $plan,
+                'full_table_scan' => $fullTableScan,
+                'missing_index'   => $missingIndex,
+            ];
+        } catch (Throwable) {
+            return null;
+        }
+    }
 }
+
 

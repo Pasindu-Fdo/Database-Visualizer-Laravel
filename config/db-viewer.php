@@ -39,5 +39,11 @@ return [
 
         // Default IDE for code origin links (vscode, phpstorm, cursor, subl).
         'ide' => env('DB_VIEWER_IDE', 'vscode'),
+
+        // Threshold (in milliseconds) to flag a query as slow (default: 10ms locally).
+        'slow_query_threshold_ms' => (float) env('DB_TRACER_SLOW_QUERY_THRESHOLD_MS', 10.0),
+
+        // Whether to automatically run EXPLAIN on slow SELECT queries to detect full table scans.
+        'explain_slow_queries' => env('DB_TRACER_EXPLAIN_SLOW_QUERIES', true),
     ],
 ];
