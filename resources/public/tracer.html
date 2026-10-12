@@ -194,8 +194,16 @@
       padding: 8px 10px 8px 0;
     }
 
-    .path-input {
+    .path-input-wrap {
       flex: 1;
+      position: relative;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+    }
+
+    .path-input {
+      width: 100%;
       font-family: 'JetBrains Mono', monospace;
       font-size: 13px;
       color: var(--text);
@@ -207,6 +215,80 @@
     }
 
     .path-input::placeholder { color: var(--text-dim); }
+
+    .route-dropdown {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      right: 0;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.06);
+      max-height: 280px;
+      overflow-y: auto;
+      z-index: 250;
+      display: none;
+    }
+
+    .route-dropdown.visible { display: block; }
+
+    .route-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border-subtle);
+      transition: background 0.1s;
+    }
+
+    .route-item:last-child { border-bottom: none; }
+    .route-item:hover, .route-item.selected { background: var(--bg-hover); }
+
+    .route-method-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      flex-shrink: 0;
+      min-width: 44px;
+      text-align: center;
+    }
+
+    .rmb-get { background: #e0f2fe; color: #0369a1; }
+    .rmb-post { background: #dcfce7; color: #15803d; }
+    .rmb-put, .rmb-patch { background: #fef3c7; color: #b45309; }
+    .rmb-delete { background: #fee2e2; color: #b91c1c; }
+
+    .route-uri {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text);
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .route-action {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--text-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 220px;
+    }
+
+    .route-empty {
+      padding: 12px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
 
     .run-btn {
       font-size: 12px;
@@ -1243,15 +1325,18 @@
         title="Your Laravel app base URL"
       />
 
-      <input
-        id="pathInput"
-        class="path-input"
-        type="text"
-        placeholder="/api/profile  or  /videos/update"
-        aria-label="Route path to trace"
-        autocomplete="off"
-        spellcheck="false"
-      />
+      <div class="path-input-wrap">
+        <input
+          id="pathInput"
+          class="path-input"
+          type="text"
+          placeholder="Type or select a route (e.g. /api/profile)..."
+          aria-label="Route path to trace"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <div id="routeDropdown" class="route-dropdown" role="listbox"></div>
+      </div>
 
       <button id="runBtn" class="run-btn pulse-ring" aria-label="Run trace">
         <div class="spinner" aria-hidden="true"></div>
@@ -1359,6 +1444,8 @@ const TYPE = {
 // ── State ─────────────────────────────────────────────────────────
 let lastResult = null;
 let isN1FilterActive = false;
+let appRoutes = [];
+let activeRouteIndex = -1;
 
 // ── Init: load app URL from server env ───────────────────────────
 async function loadEnv() {
@@ -1381,6 +1468,20 @@ async function loadEnv() {
     if ($('ideSelect')) {
       $('ideSelect').value = savedIde;
     }
+  }
+
+  // Load route collection for autocomplete
+  loadRoutes();
+}
+
+async function loadRoutes() {
+  try {
+    const res = await fetch('/api/routes');
+    if (res.ok) {
+      appRoutes = await res.json();
+    }
+  } catch (_) {
+    appRoutes = [];
   }
 }
 
@@ -1900,16 +2001,143 @@ function formatSql(sql) {
   return sql.replace(keywords, m => '\n' + m.toUpperCase()).trimStart();
 }
 
-// ── Event listeners ───────────────────────────────────────────────
-$('runBtn').addEventListener('click', runTrace);
+// ── Route Autocomplete Dropdown ───────────────────────────────────
+function renderRouteDropdown(query = '') {
+  const dd = $('routeDropdown');
+  if (!dd) return;
 
-$('pathInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') runTrace();
+  const q = query.trim().toLowerCase();
+  const filtered = appRoutes.filter(r => {
+    if (!q) return true;
+    return r.uri.toLowerCase().includes(q) ||
+           (r.name && r.name.toLowerCase().includes(q)) ||
+           (r.action && r.action.toLowerCase().includes(q));
+  }).slice(0, 25);
+
+  activeRouteIndex = -1;
+
+  if (!filtered.length) {
+    if (!q) {
+      hideRouteDropdown();
+      return;
+    }
+    dd.innerHTML = '<div class="route-empty">No matching routes found</div>';
+    dd.classList.add('visible');
+    return;
+  }
+
+  dd.innerHTML = '';
+  filtered.forEach((r, idx) => {
+    const item = document.createElement('div');
+    item.className = 'route-item';
+    item.dataset.index = idx;
+
+    const primaryMethod = r.methods[0] || 'GET';
+    const methodClass = `rmb-${primaryMethod.toLowerCase()}`;
+
+    item.innerHTML = `
+      <span class="route-method-badge ${methodClass}">${primaryMethod}</span>
+      <span class="route-uri" title="${escHtml(r.uri)}">${escHtml(r.uri)}</span>
+      <span class="route-action" title="${escHtml(r.action)}">${escHtml(r.action)}</span>
+    `;
+
+    item.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      selectRoute(r);
+    });
+
+    dd.appendChild(item);
+  });
+
+  dd.classList.add('visible');
+}
+
+function hideRouteDropdown() {
+  const dd = $('routeDropdown');
+  if (dd) {
+    dd.classList.remove('visible');
+  }
+  activeRouteIndex = -1;
+}
+
+function selectRoute(route) {
+  $('pathInput').value = route.uri;
+
+  // Auto-synchronize HTTP method dropdown
+  const methods = route.methods || ['GET'];
+  const preferred = methods.includes('GET') ? 'GET' : methods[0];
+  if (preferred && $('methodSelect')) {
+    $('methodSelect').value = preferred;
+  }
+
+  hideRouteDropdown();
+}
+
+function highlightRouteItem(index) {
+  const dd = $('routeDropdown');
+  if (!dd) return;
+  const items = dd.querySelectorAll('.route-item');
+  items.forEach((item, i) => {
+    item.classList.toggle('selected', i === index);
+    if (i === index) {
+      item.scrollIntoView({ block: 'nearest' });
+    }
+  });
+}
+
+// ── Event listeners ───────────────────────────────────────────────
+$('runBtn').addEventListener('click', () => {
+  hideRouteDropdown();
+  runTrace();
 });
 
-// Persist app URL edits to localStorage
-$('appUrlInput').addEventListener('change', () => {
-  localStorage.setItem('db-tracer-app-url', $('appUrlInput').value);
+$('pathInput').addEventListener('input', () => {
+  renderRouteDropdown($('pathInput').value);
+});
+
+$('pathInput').addEventListener('focus', () => {
+  renderRouteDropdown($('pathInput').value);
+});
+
+$('pathInput').addEventListener('keydown', e => {
+  const dd = $('routeDropdown');
+  const isVisible = dd && dd.classList.contains('visible');
+  const items = dd ? dd.querySelectorAll('.route-item') : [];
+
+  if (e.key === 'ArrowDown') {
+    if (!isVisible) {
+      renderRouteDropdown($('pathInput').value);
+      return;
+    }
+    if (items.length) {
+      activeRouteIndex = (activeRouteIndex + 1) % items.length;
+      highlightRouteItem(activeRouteIndex);
+      e.preventDefault();
+    }
+  } else if (e.key === 'ArrowUp') {
+    if (isVisible && items.length) {
+      activeRouteIndex = (activeRouteIndex - 1 + items.length) % items.length;
+      highlightRouteItem(activeRouteIndex);
+      e.preventDefault();
+    }
+  } else if (e.key === 'Enter') {
+    if (isVisible && activeRouteIndex >= 0 && items[activeRouteIndex]) {
+      items[activeRouteIndex].dispatchEvent(new MouseEvent('mousedown'));
+      e.preventDefault();
+    } else {
+      hideRouteDropdown();
+      runTrace();
+    }
+  } else if (e.key === 'Escape') {
+    hideRouteDropdown();
+  }
+});
+
+// Close autocomplete dropdown on click outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('.path-input-wrap')) {
+    hideRouteDropdown();
+  }
 });
 
 // Persist app URL edits to localStorage

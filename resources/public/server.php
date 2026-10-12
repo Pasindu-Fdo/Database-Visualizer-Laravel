@@ -49,6 +49,18 @@ if ($path === '/api/env') {
     exit;
 }
 
+// ── GET /api/routes ──────────────────────────────────────────────────────────
+if ($path === '/api/routes') {
+    $file = getenv('DB_VIEWER_ROUTES_FILE');
+    if (!$file || !is_file($file)) {
+        json_response([]);
+    }
+    header('Content-Type: application/json');
+    header('Access-Control-Allow-Origin: *');
+    readfile($file);
+    exit;
+}
+
 // ── GET /api/trace ────────────────────────────────────────────────────────────
 if ($path === '/api/trace') {
     // Require QueryTracer — resolve path relative to this file.

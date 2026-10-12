@@ -32,6 +32,10 @@ class DatabaseViewerCommand extends Command
             'ide'             => config('db-viewer.tracer.ide', 'vscode'),
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
+        // Write routes snapshot for the Route Tracer autocomplete dropdown.
+        $routesFile = storage_path('framework/cache/db-viewer-routes.json');
+        file_put_contents($routesFile, json_encode($this->collectRoutes(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
         $public = realpath(__DIR__.'/../../resources/public');
         $router = $public.'/server.php';
         $process = new Process(
@@ -40,6 +44,7 @@ class DatabaseViewerCommand extends Command
             array_merge($_ENV, [
                 'DB_VIEWER_SCHEMA_FILE' => $schemaFile,
                 'DB_VIEWER_ENV_FILE'    => $envFile,
+                'DB_VIEWER_ROUTES_FILE' => $routesFile,
             ])
         );
 
@@ -67,5 +72,49 @@ class DatabaseViewerCommand extends Command
             : (PHP_OS_FAMILY === 'Windows' ? ['cmd', '/c', 'start', '', $url] : ['xdg-open', $url]);
 
         try { (new Process($command))->start(); } catch (\Throwable) { $this->line("Open $url in your browser."); }
+    }
+
+    /**
+     * Collect routes registered in the host Laravel application.
+     *
+     * @return list<array{uri: string, methods: list<string>, name: ?string, action: string}>
+     */
+    protected function collectRoutes(): array
+    {
+        try {
+            $router = $this->laravel->make('router');
+            $routes = [];
+
+            foreach ($router->getRoutes()->getRoutes() as $route) {
+                $uri = '/' . ltrim($route->uri(), '/');
+
+                // Filter internal development and telemetry endpoints
+                if (
+                    str_starts_with($uri, '/_ignition') ||
+                    str_starts_with($uri, '/sanctum/csrf-cookie') ||
+                    str_starts_with($uri, '/telescope') ||
+                    str_starts_with($uri, '/horizon')
+                ) {
+                    continue;
+                }
+
+                $methods = array_values(array_diff($route->methods(), ['HEAD']));
+                $action = $route->getActionName();
+                $actionName = is_string($action) ? $action : 'Closure';
+
+                $routes[] = [
+                    'uri'     => $uri,
+                    'methods' => $methods,
+                    'name'    => $route->getName(),
+                    'action'  => $actionName,
+                ];
+            }
+
+            usort($routes, fn ($a, $b) => strcmp($a['uri'], $b['uri']));
+
+            return $routes;
+        } catch (\Throwable) {
+            return [];
+        }
     }
 }
