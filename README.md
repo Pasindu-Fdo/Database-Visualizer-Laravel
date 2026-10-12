@@ -28,7 +28,7 @@ A lightweight, zero-configuration local development package for Laravel to **vis
                                          ▼
 +-----------------------------------------------------------------------------------+
 |  Route Query Tracer & Visualizer                                                  |
-|  http://127.0.0.1:7331/tracer.html                                                 |
+|  http://127.0.0.1:7331/tracer                                                      |
 +-----------------------------------------------------------------------------------+
 |  [ GET ]  /admin/bookings                                           [ TRACE RUN ] |
 +-----------------------------------------------------------------------------------+
@@ -65,7 +65,7 @@ php artisan db:viewer
 
 The command will automatically launch the interactive dashboard at:
 - **`http://127.0.0.1:7331`** (Schema Visualizer)  
-- **`http://127.0.0.1:7331/tracer.html`** (Route Query Tracer)
+- **`http://127.0.0.1:7331/tracer`** (Route Query Tracer)
 
 ---
 
@@ -73,7 +73,7 @@ The command will automatically launch the interactive dashboard at:
 
 1. Make sure your main Laravel application is running (e.g. `php artisan serve` on `http://127.0.0.1:8000`).
 2. Run `php artisan db:viewer`.
-3. Open `http://127.0.0.1:7331/tracer.html`.
+3. Open `http://127.0.0.1:7331/tracer`.
 4. Enter any route URL from your application (e.g., `/api/profile` or `/admin/dashboard`).
 5. Click **Trace Request**.
 6. View the exact execution flow:

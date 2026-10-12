@@ -25,7 +25,7 @@ class DatabaseViewerCommand extends Command
         $envFile = storage_path('framework/cache/db-viewer-env.json');
         $tracerEnabled = config('db-viewer.tracer.enabled', true);
         file_put_contents($envFile, json_encode([
-            'app_url'         => config('db-viewer.tracer.app_url', config('app.url', 'http://127.0.0.1:8000')),
+            'app_url'         => rtrim(config('db-viewer.tracer.app_url', config('app.url', 'http://127.0.0.1:8000')), '/'),
             'tracer_enabled'  => $tracerEnabled,
             'timeout_seconds' => config('db-viewer.tracer.timeout_seconds', 30),
             'auth_user_id'    => config('db-viewer.tracer.auth_user_id', 1),
@@ -53,7 +53,7 @@ class DatabaseViewerCommand extends Command
 
         $url = "http://$host:$port";
         $this->info("Database Viewer:  $url");
-        $this->info("Route Tracer:     $url/tracer.html");
+        $this->info("Route Tracer:     $url/tracer");
         $this->line('Read-only development server. Press Ctrl+C to stop.');
 
         if (!$this->option('no-open')) $this->openBrowser($url);

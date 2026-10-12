@@ -942,36 +942,33 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 2px 0;
-      position: relative;
+      width: 24px;
+      height: 20px;
+      margin: 2px 0;
+      color: var(--text-dim);
       opacity: 0;
-      transition: opacity 0.3s;
+      transition: opacity 0.25s ease;
     }
 
     .connector.visible { opacity: 1; }
 
     .connector-line {
-      width: 2px;
-      background: linear-gradient(to bottom, var(--type-color, var(--indigo)), transparent);
+      width: 1px;
       flex: 1;
-      min-height: 20px;
-      position: relative;
+      background: var(--border);
     }
 
     .connector-arrow {
-      width: 0;
-      height: 0;
-      border-left: 5px solid transparent;
-      border-right: 5px solid transparent;
-      border-top: 7px solid var(--type-color, var(--indigo));
-      margin-top: -1px;
+      color: var(--text-dim);
+      flex-shrink: 0;
+      margin-top: 1px;
     }
 
     /* Query step row  */
     .step-row {
       display: grid;
-      grid-template-columns: 28px 1fr;
-      gap: 0 12px;
+      grid-template-columns: 24px 1fr;
+      gap: 0 10px;
       align-items: start;
     }
 
@@ -979,31 +976,30 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding-top: 6px;
+      padding-top: 8px;
     }
 
     .step-num {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      border-radius: var(--radius-sm);
       display: flex;
       align-items: center;
       justify-content: center;
       font-family: 'JetBrains Mono', monospace;
       font-size: 11px;
-      font-weight: 700;
-      background: var(--type-bg, var(--indigo-dim));
-      color: var(--type-color, var(--indigo));
-      border: 1.5px solid var(--type-color, var(--indigo));
+      font-weight: 600;
+      background: #ffffff;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
       flex-shrink: 0;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+      transition: border-color 0.15s, color 0.15s;
     }
 
-    .step-line {
-      flex: 1;
-      width: 2px;
-      background: linear-gradient(to bottom, var(--type-color, var(--indigo)), transparent);
-      min-height: 16px;
-      margin-top: 4px;
+    .step-row:hover .step-num {
+      border-color: var(--border-dark);
+      color: var(--text);
     }
 
     /* Table node card */
@@ -1451,7 +1447,7 @@ async function loadEnv() {
     const res  = await fetch('/api/env');
     const data = await res.json();
     if (data.app_url) {
-      $('appUrlInput').value = data.app_url;
+      $('appUrlInput').value = data.app_url.replace(/\/+$/, '');
     }
     const savedIde = localStorage.getItem('db_tracer_ide') || data.ide || 'vscode';
     if ($('ideSelect')) {
@@ -1511,7 +1507,8 @@ function getIdeUrl(file, line) {
 async function runTrace() {
   const path    = $('pathInput').value.trim();
   const method  = $('methodSelect').value;
-  const appUrl  = $('appUrlInput').value.trim();
+  const appUrl  = $('appUrlInput').value.trim().replace(/\/+$/, '');
+  $('appUrlInput').value = appUrl;
 
   if (!path) { $('pathInput').focus(); return; }
 
@@ -1694,11 +1691,9 @@ function renderFlow(data) {
     const conn = document.createElement('div');
     conn.className = 'connector';
     conn.dataset.isN1 = step.is_n_plus_one ? 'true' : 'false';
-    conn.style.setProperty('--type-color', t.color);
-    conn.style.setProperty('--type-bg',    t.bg);
     conn.innerHTML = `
-      <div class="connector-line" style="min-height:24px"></div>
-      <div class="connector-arrow" style="border-top-color:${t.color}"></div>
+      <div class="connector-line"></div>
+      <svg class="connector-arrow" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
     `;
     area.appendChild(conn);
     setTimeout(() => conn.classList.add('visible'), delay - 40);
@@ -1711,12 +1706,7 @@ function renderFlow(data) {
 
     const stepCol = document.createElement('div');
     stepCol.className = 'step-col';
-    stepCol.style.setProperty('--type-color', t.color);
-    stepCol.style.setProperty('--type-bg',    t.bg);
-    stepCol.innerHTML = `
-      <div class="step-num" style="--type-color:${t.color};--type-bg:${t.bg}">${step.step}</div>
-      ${i < seq.length - 1 ? `<div class="step-line" style="background:linear-gradient(to bottom,${t.color},transparent)"></div>` : ''}
-    `;
+    stepCol.innerHTML = `<div class="step-num">${step.step}</div>`;
 
     // Table node
     const tn = document.createElement('div');
@@ -2138,12 +2128,21 @@ document.addEventListener('click', e => {
 
 // Persist app URL edits to localStorage
 $('appUrlInput').addEventListener('change', () => {
+  $('appUrlInput').value = $('appUrlInput').value.trim().replace(/\/+$/, '');
   localStorage.setItem('db-tracer-app-url', $('appUrlInput').value);
+});
+$('appUrlInput').addEventListener('blur', () => {
+  $('appUrlInput').value = $('appUrlInput').value.trim().replace(/\/+$/, '');
 });
 
 // Restore from localStorage
 const saved = localStorage.getItem('db-tracer-app-url');
-if (saved) $('appUrlInput').value = saved;
+if (saved) $('appUrlInput').value = saved.replace(/\/+$/, '');
+
+// Clean browser URL bar (hide /tracer.html)
+if (window.location.pathname.endsWith('/tracer.html')) {
+  window.history.replaceState(null, '', '/tracer' + window.location.search);
+}
 
 // Bootstrap
 loadEnv();

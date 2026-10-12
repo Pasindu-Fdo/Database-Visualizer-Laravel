@@ -25,6 +25,18 @@ function json_response(mixed $data, int $status = 200): never
 
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
+// Clean URL for Route Tracer
+if ($path === '/tracer.html') {
+    header('Location: /tracer', true, 301);
+    exit;
+}
+
+if ($path === '/tracer' || $path === '/tracer/') {
+    header('Content-Type: text/html; charset=UTF-8');
+    readfile(__DIR__ . '/tracer.html');
+    exit;
+}
+
 // GET /api/schema
 if ($path === '/api/schema') {
     $file = getenv('DB_VIEWER_SCHEMA_FILE');
