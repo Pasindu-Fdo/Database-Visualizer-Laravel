@@ -40,37 +40,60 @@ class DbTracerMiddleware
     private function traceRequest(Request $request, Closure $next): Response
     {
         // 1. Auth bypass
-        // Log in as an available user so auth middleware passes cleanly.
+        // Authenticate as an available user so route auth middleware passes cleanly.
         // Tries configured ID, or automatically resolves the first user in the DB.
         $userId = config('db-viewer.tracer.auth_user_id');
 
         try {
+            $user = null;
             if ($userId === null || $userId === 'auto' || $userId === 0 || $userId === '0') {
-                // Auto-resolve first user from user model / table if available
                 $userModel = config('auth.providers.users.model', 'App\\Models\\User');
                 if (class_exists($userModel)) {
                     $user = $userModel::first();
-                    if ($user) {
-                        Auth::login($user);
-                    }
                 }
             } elseif ((int) $userId > 0) {
-                Auth::loginUsingId((int) $userId);
+                $userModel = config('auth.providers.users.model', 'App\\Models\\User');
+                if (class_exists($userModel)) {
+                    $user = $userModel::find((int) $userId);
+                }
+            }
+
+            if ($user) {
+                // 1. Bind user to request user resolver (for $request->user())
+                $request->setUserResolver(fn ($guard = null) => $user);
+
+                // 2. Set user on default Auth guard
+                try {
+                    Auth::setUser($user);
+                } catch (Throwable) {}
+
+                // 3. Set user across all registered guards (web, api, sanctum, etc.)
+                try {
+                    $guards = array_keys(config('auth.guards', ['web' => []]));
+                    foreach ($guards as $guardName) {
+                        try {
+                            $guard = Auth::guard($guardName);
+                            if (method_exists($guard, 'setUser')) {
+                                $guard->setUser($user);
+                            }
+                        } catch (Throwable) {}
+                    }
+                } catch (Throwable) {}
             }
         } catch (Throwable) {
-            // User model / table doesn't exist or guard misconfigured; continue safely.
+            // User model / table doesn't exist or DB unavailable; continue safely.
         }
 
         // 2. CSRF bypass
-        // At this point (running after StartSession in the web group), the
-        // session is live. Inject the real session CSRF token into the request
-        // so VerifyCsrfToken sees a valid token and does not block us.
+        // If a session is active, inject the real CSRF token so VerifyCsrfToken does not block us.
         try {
-            $token = $request->session()->token();
-            $request->merge(['_token' => $token]);
-            $request->headers->set('X-CSRF-TOKEN', $token);
+            if ($request->hasSession()) {
+                $token = $request->session()->token();
+                $request->merge(['_token' => $token]);
+                $request->headers->set('X-CSRF-TOKEN', $token);
+            }
         } catch (Throwable) {
-            // Session may not exist (e.g., api group, stateless routes) — fine.
+            // Stateless / API routes without session — fine.
         }
 
         // 3. Query capture

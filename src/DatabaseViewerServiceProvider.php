@@ -23,13 +23,22 @@ class DatabaseViewerServiceProvider extends ServiceProvider
             $this->publishes([__DIR__.'/../config/db-viewer.php' => config_path('db-viewer.php')], 'db-viewer-config');
         }
 
-        // Register tracer middleware globally if Kernel exists
+        // Register tracer middleware
         if ($this->app->bound(Kernel::class)) {
             $kernel = $this->app->make(Kernel::class);
             if (method_exists($kernel, 'pushMiddleware')) {
                 $kernel->pushMiddleware(DbTracerMiddleware::class);
             }
             $this->insertIntoMiddlewarePriority($kernel);
+        }
+
+        // Also push to router middleware groups ('web' and 'api') so session is active
+        if ($this->app->bound('router')) {
+            $router = $this->app->make('router');
+            if (method_exists($router, 'pushMiddlewareToGroup')) {
+                $router->pushMiddlewareToGroup('web', DbTracerMiddleware::class);
+                $router->pushMiddlewareToGroup('api', DbTracerMiddleware::class);
+            }
         }
     }
 
@@ -46,14 +55,23 @@ class DatabaseViewerServiceProvider extends ServiceProvider
             // Place DbTracerMiddleware right after StartSession if it exists
             $startSessionIndex = array_search(\Illuminate\Session\Middleware\StartSession::class, $priority);
             if ($startSessionIndex !== false) {
+                // Remove if already exists to prevent duplicate entries
+                $existingIndex = array_search(DbTracerMiddleware::class, $priority);
+                if ($existingIndex !== false) {
+                    array_splice($priority, $existingIndex, 1);
+                    // Re-calculate startSessionIndex after removal
+                    $startSessionIndex = array_search(\Illuminate\Session\Middleware\StartSession::class, $priority);
+                }
                 array_splice($priority, $startSessionIndex + 1, 0, [DbTracerMiddleware::class]);
             } else {
-                $priority[] = DbTracerMiddleware::class;
+                if (!in_array(DbTracerMiddleware::class, $priority, true)) {
+                    $priority[] = DbTracerMiddleware::class;
+                }
             }
 
             $ref->setValue($kernel, $priority);
-        } catch (\Throwable $e) {
-            // Ignore reflection failures on unsupported versions
+        } catch (\Throwable) {
+            // Ignore reflection failures on unsupported versions (e.g. Laravel 11/12 functional bootstrap)
         }
     }
 }
