@@ -39,7 +39,7 @@ class DbTracerMiddleware
 
     private function traceRequest(Request $request, Closure $next): Response
     {
-        // ── 1. Auth bypass ─────────────────────────────────────────────────
+        // 1. Auth bypass
         // Log in as an available user so auth middleware passes cleanly.
         // Tries configured ID, or automatically resolves the first user in the DB.
         $userId = config('db-viewer.tracer.auth_user_id');
@@ -61,7 +61,7 @@ class DbTracerMiddleware
             // User model / table doesn't exist or guard misconfigured; continue safely.
         }
 
-        // ── 2. CSRF bypass ─────────────────────────────────────────────────
+        // 2. CSRF bypass
         // At this point (running after StartSession in the web group), the
         // session is live. Inject the real session CSRF token into the request
         // so VerifyCsrfToken sees a valid token and does not block us.
@@ -73,7 +73,7 @@ class DbTracerMiddleware
             // Session may not exist (e.g., api group, stateless routes) — fine.
         }
 
-        // ── 3. Query capture ───────────────────────────────────────────────
+        // 3. Query capture
         $startTime = hrtime(true);
         $slowThreshold = (float) (function_exists('config') ? config('db-viewer.tracer.slow_query_threshold_ms', 10.0) : 10.0);
         $explainSlow = (bool) (function_exists('config') ? config('db-viewer.tracer.explain_slow_queries', true) : true);

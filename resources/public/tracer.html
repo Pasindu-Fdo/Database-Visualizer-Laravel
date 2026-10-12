@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
-    /* ─── Reset & Design Tokens (Matched to Schema Visualizer) ───── */
+    /* Reset & Design Tokens */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
@@ -64,7 +64,7 @@
 
     .app { display: flex; flex-direction: column; min-height: 100vh; }
 
-    /* ─── Topbar (Matched to Schema Visualizer Header) ───────────── */
+    /* Topbar */
     .header {
       background: #ffffff;
       border-bottom: 1px solid var(--border);
@@ -146,10 +146,10 @@
     }
     .nav-btn.primary:hover { background: var(--primary-hover); }
 
-    /* ─── Main Content Container ─────────────────────────────────── */
+    /* Main Content Container */
     .main { flex: 1; padding: 24px 28px; max-width: 1400px; margin: 0 auto; width: 100%; }
 
-    /* ─── Request Bar (Clean Light Card) ─────────────────────────── */
+    /* Request Bar */
     .request-bar {
       display: flex;
       gap: 0;
@@ -384,7 +384,7 @@
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ─── Error Banner ───────────────────────────────────────── */
+    /* Error Banner */
     .error-banner {
       display: none;
       flex-direction: column;
@@ -404,7 +404,7 @@
 
     .error-banner strong { color: var(--rose); display: block; margin-bottom: 2px; }
 
-    /* ─── N+1 Problem Banner ─────────────────────────────────── */
+    /* N+1 Problem Banner */
     .n-plus-one-banner {
       display: none;
       background: #fffbeb;
@@ -571,7 +571,7 @@
       display: none !important;
     }
 
-    /* ─── Caller Pill / Code Origin ─────────────────────────── */
+    /* Caller Pill / Code Origin */
     .caller-pill {
       display: inline-flex;
       align-items: center;
@@ -637,7 +637,7 @@
       outline: none;
     }
 
-    /* ─── Slow Query & EXPLAIN Badges ────────────────────────── */
+    /* Slow Query & EXPLAIN Badges */
     .slow-badge {
       display: inline-flex;
       align-items: center;
@@ -762,7 +762,7 @@
       white-space: nowrap;
     }
 
-    /* ─── Stats Row ──────────────────────────────────────────── */
+    /* Stats Row */
     .stats-row {
       display: flex;
       gap: 12px;
@@ -797,7 +797,7 @@
 
     .stat-chip .value { color: var(--text); font-weight: 600; }
 
-    /* ─── Main grid ──────────────────────────────────────────── */
+    /* Main grid */
     .grid {
       display: grid;
       grid-template-columns: 1fr 380px;
@@ -809,7 +809,7 @@
       .grid { grid-template-columns: 1fr; }
     }
 
-    /* ─── Flow canvas ────────────────────────────────────────── */
+    /* Flow canvas */
     .canvas-card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -1099,7 +1099,7 @@
       margin-bottom: 4px;
     }
 
-    /* ─── Sidebar ────────────────────────────────────────────── */
+    /* Sidebar */
     .sidebar { display: flex; flex-direction: column; gap: 16px; }
 
     .panel {
@@ -1238,7 +1238,7 @@
       transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
     }
 
-    /* ─── Tooltip ────────────────────────────────────────────── */
+    /* Tooltip */
     #tooltip {
       position: fixed;
       z-index: 9999;
@@ -1256,7 +1256,7 @@
       color: var(--text-muted);
     }
 
-    /* ─── Keyframes ──────────────────────────────────────────── */
+    /* Keyframes */
     @keyframes fadeSlideIn {
       from { opacity: 0; transform: translateY(8px); }
       to   { opacity: 1; transform: translateY(0); }
@@ -1271,7 +1271,7 @@
       50%       { box-shadow: 0 0 0 6px rgba(99,102,241,0); }
     }
 
-    /* ─── Scrollbar ──────────────────────────────────────────── */
+    /* Scrollbar */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: var(--bg); }
     ::-webkit-scrollbar-thumb { background: var(--surface-2); border-radius: 3px; }
@@ -1280,7 +1280,7 @@
 <body>
 <div class="app">
 
-  <!-- ── Header ─────────────────────────────────────────────── -->
+  <!-- Header -->
   <header class="header">
     <a href="/" class="brand-title" aria-label="Back to schema viewer">
       <div class="brand-mark">❖</div>
@@ -1303,7 +1303,7 @@
     </nav>
   </header>
 
-  <!-- ── Main ───────────────────────────────────────────────── -->
+  <!-- Main -->
   <main class="main" id="main">
 
     <!-- Request bar -->
@@ -1427,13 +1427,11 @@
 <div id="tooltip" role="tooltip"></div>
 
 <script>
-/* ═══════════════════════════════════════════════════════════════
-   Route Tracer — Client Script
-   ═══════════════════════════════════════════════════════════════ */
+// Route Tracer — Client Script
 
 const $ = id => document.getElementById(id);
 
-// ── Config ────────────────────────────────────────────────────────
+// Config
 const TYPE = {
   read:   { color: '#0284c7', bg: '#e0f2fe', icon: '📖', label: 'SELECT' },
   write:  { color: '#15803d', bg: '#dcfce7', icon: '✏️',  label: 'INSERT' },
@@ -1441,13 +1439,13 @@ const TYPE = {
   other:  { color: '#475569', bg: '#f1f5f9', icon: '🔧', label: 'OTHER' },
 };
 
-// ── State ─────────────────────────────────────────────────────────
+// State
 let lastResult = null;
 let isN1FilterActive = false;
 let appRoutes = [];
 let activeRouteIndex = -1;
 
-// ── Init: load app URL from server env ───────────────────────────
+// Init: load app URL from server env
 async function loadEnv() {
   try {
     const res  = await fetch('/api/env');
@@ -1509,7 +1507,7 @@ function getIdeUrl(file, line) {
   }
 }
 
-// ── Run trace ─────────────────────────────────────────────────────
+// Run trace
 async function runTrace() {
   const path    = $('pathInput').value.trim();
   const method  = $('methodSelect').value;
@@ -1541,7 +1539,7 @@ async function runTrace() {
   }
 }
 
-// ── Render results ────────────────────────────────────────────────
+// Render results
 function renderResults(data) {
   renderNPlusOne(data.n_plus_one);
   renderStats(data);
@@ -1880,7 +1878,7 @@ function renderTiming(sequence) {
   });
 }
 
-// ── N+1 Filter Toggle ──────────────────────────────────────────────
+// N+1 Filter Toggle
 function toggleN1Filter() {
   isN1FilterActive = !isN1FilterActive;
   const btn = $('toggleN1FilterBtn');
@@ -1915,7 +1913,7 @@ function toggleN1Filter() {
   });
 }
 
-// ── UI helpers ─────────────────────────────────────────────────────
+// UI helpers
 function setLoading(on) {
   const btn = $('runBtn');
   btn.disabled = on;
@@ -1983,7 +1981,7 @@ function toggleCookieHelp(e) {
   box.style.display = box.style.display === 'none' ? 'block' : 'none';
 }
 
-// ── Formatting helpers ─────────────────────────────────────────────
+// Formatting helpers
 function escHtml(str) {
   return String(str ?? '')
     .replace(/&/g, '&amp;')
@@ -2001,7 +1999,7 @@ function formatSql(sql) {
   return sql.replace(keywords, m => '\n' + m.toUpperCase()).trimStart();
 }
 
-// ── Route Autocomplete Dropdown ───────────────────────────────────
+// Route Autocomplete Dropdown
 function renderRouteDropdown(query = '') {
   const dd = $('routeDropdown');
   if (!dd) return;
@@ -2085,7 +2083,7 @@ function highlightRouteItem(index) {
   });
 }
 
-// ── Event listeners ───────────────────────────────────────────────
+// Event listeners
 $('runBtn').addEventListener('click', () => {
   hideRouteDropdown();
   runTrace();
@@ -2149,7 +2147,7 @@ $('appUrlInput').addEventListener('change', () => {
 const saved = localStorage.getItem('db-tracer-app-url');
 if (saved) $('appUrlInput').value = saved;
 
-// ── Bootstrap ─────────────────────────────────────────────────────
+// Bootstrap
 loadEnv();
 </script>
 </body>

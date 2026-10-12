@@ -10,7 +10,7 @@
  * *   /*            – serves static files from this directory
  */
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// Helpers
 
 function json_response(mixed $data, int $status = 200): never
 {
@@ -21,11 +21,11 @@ function json_response(mixed $data, int $status = 200): never
     exit;
 }
 
-// ── Routing ───────────────────────────────────────────────────────────────────
+// Routing
 
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
-// ── GET /api/schema ──────────────────────────────────────────────────────────
+// GET /api/schema
 if ($path === '/api/schema') {
     $file = getenv('DB_VIEWER_SCHEMA_FILE');
     if (!$file || !is_file($file)) {
@@ -37,7 +37,7 @@ if ($path === '/api/schema') {
     exit;
 }
 
-// ── GET /api/env ─────────────────────────────────────────────────────────────
+// GET /api/env
 if ($path === '/api/env') {
     $file = getenv('DB_VIEWER_ENV_FILE');
     if (!$file || !is_file($file)) {
@@ -49,7 +49,7 @@ if ($path === '/api/env') {
     exit;
 }
 
-// ── GET /api/routes ──────────────────────────────────────────────────────────
+// GET /api/routes
 if ($path === '/api/routes') {
     $file = getenv('DB_VIEWER_ROUTES_FILE');
     if (!$file || !is_file($file)) {
@@ -61,7 +61,7 @@ if ($path === '/api/routes') {
     exit;
 }
 
-// ── GET /api/trace ────────────────────────────────────────────────────────────
+// GET /api/trace
 if ($path === '/api/trace') {
     // Require QueryTracer — resolve path relative to this file.
     $tracerClass = __DIR__ . '/../../src/QueryTracer.php';
@@ -108,7 +108,7 @@ if ($path === '/api/trace') {
     json_response($result, $result['ok'] ? 200 : 502);
 }
 
-// ── Static files ──────────────────────────────────────────────────────────────
+// Static files
 $target = __DIR__ . ($path === '/' ? '/index.html' : $path);
 if (!str_starts_with(realpath($target) ?: '', realpath(__DIR__)) || !is_file($target)) {
     http_response_code(404);
