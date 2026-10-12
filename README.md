@@ -7,10 +7,12 @@ A lightweight, zero-configuration local development package for Laravel to **vis
 ## Features
 
 - **Schema Visualizer**: Interactive ER diagrams, table relationships, index listings, and column metadata.
-- **Route Query Tracer**: Replay any Web or API route (`GET`, `POST`, `PUT`, `DELETE`) and watch SQL queries fire live.
-- **Real-Time Data Transfer Flow**: Visual execution flow showing how data moves between your application routes and database tables.
-- **Automatic Zero-Config Auth Bypass**: Automatically logs in as an available user in `local` environment without pasting cookies or headers.
-- **Automatic CSRF Token Handling**: Post form data or trigger state-mutating endpoints cleanly without `419 Page Expired` errors.
+- **Route Query Tracer**: Replay any Web or API route (`GET`, `POST`, `PUT`, `DELETE`, `PATCH`) with automatic route autocomplete.
+- **Live Query Execution Flow**: Visual sequence track showing execution order, table touches, and SQL operations.
+- **N+1 Query & Duplicate Detection**: Automatically identifies repeated identical queries with optimization suggestions and one-click filtering.
+- **Slow Query & Full Table Scan Warnings**: Flags queries exceeding threshold times and runs `EXPLAIN` to spot missing indexes.
+- **1-Click IDE Jump Links**: Direct deep links on query callers into VS Code, PhpStorm, Cursor, or Sublime Text.
+- **Zero-Config Auth & CSRF Handling**: Automatically authenticates across guards without overriding persistent browser sessions, preventing `403` and `419` errors.
 - **Read / Write / Mutate Breakdown**: Instant counts and timing analysis for `SELECT`, `INSERT`, `UPDATE`, and `DELETE` queries per table.
 
 ---
@@ -24,22 +26,23 @@ A lightweight, zero-configuration local development package for Laravel to **vis
 +-----------------------------------------------------------------------------------+
                                          ▲
                                          │  Proxy HTTP Request + X-DB-Tracer
-                                         │  (Auto Auth + Auto CSRF Token)
+                                         │  (In-Memory Auth + Auto CSRF Token)
                                          ▼
 +-----------------------------------------------------------------------------------+
 |  Route Query Tracer & Visualizer                                                  |
 |  http://127.0.0.1:7331/tracer                                                      |
 +-----------------------------------------------------------------------------------+
-|  [ GET ]  /admin/bookings                                           [ TRACE RUN ] |
+|  [ GET ]  /admin/bookings                                           [ TRACE ]     |
 +-----------------------------------------------------------------------------------+
 |                                                                                   |
-|  [ Request Flow Visualizer ]                                                      |
-|   Route [/admin/bookings] ─── (SELECT * FROM users) ────> [ users ]              |
-|                           ─── (SELECT * FROM bookings) ─> [ bookings ]           |
+|  [ Execution Sequence & Timeline ]                                                |
+|   1. sessions          SELECT    0.57ms   [ public/index.php:20 ↗ ]               |
+|   2. audit_logs        SELECT    0.49ms   [ AuditLogController.php:30 ↗ ]         |
+|   3. users             SELECT    0.41ms   [ AuditLogController.php:30 ↗ ]         |
+|   4. sessions          INSERT    6.04ms   [ public/index.php:20 ↗ ]               |
 |                                                                                   |
-|  [ Execution Timeline & SQL Queries ]                                             |
-|   #1  0.8ms   SELECT * FROM `users` WHERE `id` = 1 LIMIT 1                        |
-|   #2  1.4ms   SELECT `bookings`.*, `users`.`name` FROM `bookings` ...             |
+|  [ N+1 & Query Performance Insights ]                                             |
+|   ⚡ 1 N+1 pattern detected • 4 duplicate executions • Full table scan warning    |
 +-----------------------------------------------------------------------------------+
 ```
 
@@ -74,12 +77,13 @@ The command will automatically launch the interactive dashboard at:
 1. Make sure your main Laravel application is running (e.g. `php artisan serve` on `http://127.0.0.1:8000`).
 2. Run `php artisan db:viewer`.
 3. Open `http://127.0.0.1:7331/tracer`.
-4. Enter any route URL from your application (e.g., `/api/profile` or `/admin/dashboard`).
-5. Click **Trace Request**.
-6. View the exact execution flow:
-   - **Table Cards**: Displays total query counts, reads, writes, and mutations per table.
-   - **Data Flow Graph**: Demonstrates query execution order.
-   - **Detailed SQL Timeline**: Full SQL code, bindings, execution times in milliseconds, and call sequence.
+4. Enter or select a route URL from autocomplete (e.g., `/api/profile` or `/admin/bookings`).
+5. Click **Trace**.
+6. View the execution flow:
+   - **Sequence Flow**: Chronological step-by-step query flow with table names, types, timing, and caller origin links.
+   - **N+1 Problem Alert**: Instant banner highlighting duplicate queries with suggestions and toggle filter.
+   - **Tables Touched Summary**: Per-table read, write, and mutation aggregations.
+   - **Query Timing Bar Graph**: Visual proportional breakdown of execution time across all queries.
 
 ---
 
@@ -104,8 +108,22 @@ return [
         'timeout_seconds' => (int) env('DB_TRACER_TIMEOUT', 30),
 
         // Auto-authenticates as the first available user in local DB.
-        // Set to a specific ID (e.g. 5) or 0 to disable.
+        // - 'auto' or null (default): First user found in the DB.
+        // - Specific integer (e.g. 1): Specific user ID.
+        // - 0 or false: Disables auto-authentication.
         'auth_user_id'    => env('DB_TRACER_AUTH_USER_ID', 'auto'),
+
+        // Threshold for flagging repeated queries as N+1 issues (default: 3)
+        'n_plus_one_threshold' => (int) env('DB_TRACER_N_PLUS_ONE_THRESHOLD', 3),
+
+        // Preferred IDE for code origin jump links ('vscode', 'phpstorm', 'cursor', 'subl')
+        'ide' => env('DB_VIEWER_IDE', 'vscode'),
+
+        // Threshold (in milliseconds) to flag queries as slow (default: 100ms)
+        'slow_query_threshold_ms' => (float) env('DB_TRACER_SLOW_QUERY_THRESHOLD_MS', 100.0),
+
+        // Run EXPLAIN on slow SELECT queries to detect full table scans
+        'explain_slow_queries' => env('DB_TRACER_EXPLAIN_SLOW_QUERIES', true),
     ],
 ];
 ```
