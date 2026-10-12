@@ -1283,10 +1283,10 @@
   <!-- Header -->
   <header class="header">
     <a href="/" class="brand-title" aria-label="Back to schema viewer">
-      <div class="brand-mark">❖</div>
+      <div class="brand-mark"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></div>
       <span>Database Visualizer</span>
     </a>
-    <span class="header-badge">Route Tracer</span>
+    <!-- <span class="header-badge">Route Tracer</span> -->
 
     <nav class="header-nav">
       <div class="ide-picker" title="Preferred code editor for stack trace links">
@@ -1298,8 +1298,8 @@
           <option value="subl">Sublime</option>
         </select>
       </div>
-      <a href="/" class="nav-btn">Schema</a>
-      <a href="/tracer.html" class="nav-btn primary">Route Tracer</a>
+      <a href="/" class="nav-btn primary">Schema</a>
+      <!-- <a href="/tracer.html" class="nav-btn primary">Route Tracer</a> -->
     </nav>
   </header>
 
@@ -1340,14 +1340,14 @@
 
       <button id="runBtn" class="run-btn pulse-ring" aria-label="Run trace">
         <div class="spinner" aria-hidden="true"></div>
-        <span class="btn-label">▶ Trace</span>
+        <span class="btn-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="vertical-align:-1px;margin-right:4px;"><polygon points="5 3 19 12 5 21 5 3"/></svg>Trace</span>
       </button>
     </div>
 
     <!-- Error banner -->
     <div id="errorBanner" class="error-banner" role="alert">
       <div class="error-banner-top">
-        <span class="error-banner-icon">⚠</span>
+        <span class="error-banner-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span>
         <div>
           <strong id="errorTitle">Connection failed</strong>
           <span id="errorMsg"></span>
@@ -1360,7 +1360,7 @@
     <div id="nPlusOneBanner" class="n-plus-one-banner" role="alert">
       <div class="n-plus-one-banner-header">
         <div class="n-plus-one-title-group">
-          <span class="n-plus-one-badge">⚠️ N+1 Detected</span>
+          <span class="n-plus-one-badge"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>N+1 Detected</span>
           <span class="n-plus-one-headline" id="nPlusOneHeadline"></span>
         </div>
         <button id="toggleN1FilterBtn" class="n-plus-one-filter-btn" type="button" onclick="toggleN1Filter()">
@@ -1433,10 +1433,10 @@ const $ = id => document.getElementById(id);
 
 // Config
 const TYPE = {
-  read:   { color: '#0284c7', bg: '#e0f2fe', icon: '📖', label: 'SELECT' },
-  write:  { color: '#15803d', bg: '#dcfce7', icon: '✏️',  label: 'INSERT' },
-  mutate: { color: '#b91c1c', bg: '#fee2e2', icon: '⚡',  label: 'UPDATE/DELETE' },
-  other:  { color: '#475569', bg: '#f1f5f9', icon: '🔧', label: 'OTHER' },
+  read:   { color: '#0284c7', bg: '#e0f2fe', label: 'SELECT' },
+  write:  { color: '#15803d', bg: '#dcfce7', label: 'INSERT' },
+  mutate: { color: '#b91c1c', bg: '#fee2e2', label: 'UPDATE/DELETE' },
+  other:  { color: '#475569', bg: '#f1f5f9', label: 'OTHER' },
 };
 
 // State
@@ -1574,20 +1574,19 @@ function renderNPlusOne(n1) {
       const ideName = $('ideSelect')?.options?.[$('ideSelect')?.selectedIndex]?.text || 'IDE';
       callerLink = `
         <a href="${ideUrl}" class="caller-pill" style="margin-top:6px;display:inline-flex;" title="Open in ${ideName} (${escHtml(c.file)}:${c.line})" onclick="event.stopPropagation()">
-          <span class="caller-icon">📍</span>
           <span class="caller-file">Origin: ${escHtml(c.short_path)}:${c.line}</span>
-          <span class="caller-jump">↗</span>
+          <svg class="caller-jump" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         </a>
       `;
     }
 
     item.innerHTML = `
       <div class="n-plus-one-item-header">
-        <span class="n-plus-one-item-count">⚠️ Executed ${alert.count}× identical queries</span>
+        <span class="n-plus-one-item-count"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:-1px;margin-right:4px;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Executed ${alert.count}× identical queries</span>
         <span class="n-plus-one-item-time">${alert.total_time_ms} ms total</span>
       </div>
       <div class="n-plus-one-item-sql">${escHtml(alert.sql)}</div>
-      <div class="n-plus-one-item-tip">💡 ${escHtml(alert.suggestion)}</div>
+      <div class="n-plus-one-item-tip"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:-1px;margin-right:4px;"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>${escHtml(alert.suggestion)}</div>
       ${callerLink}
     `;
     list.appendChild(item);
@@ -1622,7 +1621,7 @@ function renderStats(data) {
   if (data.n_plus_one && data.n_plus_one.detected) {
     chips.push({
       dot: '#f59e0b',
-      label: `⚠️ ${data.n_plus_one.count} N+1 (${data.n_plus_one.total_waste_queries + data.n_plus_one.count} queries)`,
+      label: `${data.n_plus_one.count} N+1 (${data.n_plus_one.total_waste_queries + data.n_plus_one.count} queries)`,
     });
   }
 
@@ -1632,12 +1631,12 @@ function renderStats(data) {
   if (scanCount > 0) {
     chips.push({
       dot: '#dc2626',
-      label: `🚨 ${scanCount} Full Table Scan${scanCount === 1 ? '' : 's'}`,
+      label: `${scanCount} Full Table Scan${scanCount === 1 ? '' : 's'}`,
     });
   } else if (slowCount > 0) {
     chips.push({
       dot: '#e11d48',
-      label: `⏱️ ${slowCount} slow query${slowCount === 1 ? '' : 'ies'}`,
+      label: `${slowCount} slow query${slowCount === 1 ? '' : 'ies'}`,
     });
   }
 
@@ -1668,7 +1667,7 @@ function renderFlow(data) {
   const statusClass = data.status >= 500 ? 'status-5xx'
     : data.status >= 400 ? 'status-4xx' : 'status-2xx';
   rn.innerHTML = `
-    <div class="request-node-icon">🌐</div>
+    <div class="request-node-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
     <div class="request-node-info">
       <div class="request-node-method">${data.method}</div>
       <div class="request-node-path">${escHtml(data.url)}</div>
@@ -1732,21 +1731,21 @@ function renderFlow(data) {
 
     let duplicateBadgeHtml = '';
     if (step.is_n_plus_one) {
-      duplicateBadgeHtml = `<span class="n1-badge" title="N+1 Detected: ${step.duplicate_count} identical queries executed">⚠️ N+1 (${step.duplicate_count}×)</span>`;
+      duplicateBadgeHtml = `<span class="n1-badge" title="N+1 Detected: ${step.duplicate_count} identical queries executed"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>N+1 (${step.duplicate_count}×)</span>`;
     } else if (step.is_duplicate) {
-      duplicateBadgeHtml = `<span class="duplicate-badge" title="Duplicate query: ${step.duplicate_count} identical queries executed">⚡ ${step.duplicate_count}×</span>`;
+      duplicateBadgeHtml = `<span class="duplicate-badge" title="Duplicate query: ${step.duplicate_count} identical queries executed"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>${step.duplicate_count}×</span>`;
     }
 
     let slowBadgeHtml = '';
     if (step.is_slow) {
-      slowBadgeHtml = `<span class="slow-badge" title="Slow Query: execution took ${step.time_ms.toFixed(1)} ms">⏱️ Slow</span>`;
+      slowBadgeHtml = `<span class="slow-badge" title="Slow Query: execution took ${step.time_ms.toFixed(1)} ms"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>Slow</span>`;
     }
 
     let scanBadgeHtml = '';
     if (step.full_table_scan) {
-      scanBadgeHtml = `<span class="scan-badge" title="Full Table Scan: No index was used for this query">🚨 Full Table Scan</span>`;
+      scanBadgeHtml = `<span class="scan-badge" title="Full Table Scan: No index was used for this query"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>Full Table Scan</span>`;
     } else if (step.missing_index) {
-      scanBadgeHtml = `<span class="index-badge" title="Possible missing index on filtered columns">⚠️ Missing Index</span>`;
+      scanBadgeHtml = `<span class="index-badge" title="Possible missing index on filtered columns"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Missing Index</span>`;
     }
 
     let callerPillHtml = '';
@@ -1756,9 +1755,8 @@ function renderFlow(data) {
       const ideName = $('ideSelect')?.options?.[$('ideSelect')?.selectedIndex]?.text || 'IDE';
       callerPillHtml = `
         <a href="${ideUrl}" class="caller-pill" title="Click to open ${escHtml(c.file)}:${c.line} in ${ideName}" onclick="event.stopPropagation()">
-          <span class="caller-icon">📍</span>
           <span class="caller-file">${escHtml(c.short_path)}:${c.line}</span>
-          <span class="caller-jump">↗</span>
+          <svg class="caller-jump" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         </a>
       `;
     }
@@ -1773,10 +1771,10 @@ function renderFlow(data) {
       explainHtml = `
         <div class="explain-container" onclick="event.stopPropagation()">
           <div class="explain-header">
-            <span class="explain-title">📊 EXPLAIN Query Plan</span>
+            <span class="explain-title"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px;"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>EXPLAIN Query Plan</span>
             ${step.full_table_scan ? '<span class="scan-alert-pill">Full Table Scan</span>' : '<span class="index-ok-pill">Index Used</span>'}
           </div>
-          ${step.full_table_scan ? '<div class="scan-warning-callout">⚠️ <strong>Full Table Scan:</strong> Every row was scanned sequentially. Consider adding an index on the filtered / joined columns.</div>' : ''}
+          ${step.full_table_scan ? '<div class="scan-warning-callout"><strong>Full Table Scan:</strong> Every row was scanned sequentially. Consider adding an index on the filtered / joined columns.</div>' : ''}
           <div class="explain-table-wrap">
             <table class="explain-table">
               <thead><tr>${ths}</tr></thead>
@@ -1858,7 +1856,7 @@ function renderTiming(sequence) {
     row.className = 'timing-row';
     row.dataset.isN1 = step.is_n_plus_one ? 'true' : 'false';
 
-    const n1Badge = step.is_n_plus_one ? ' <span style="color:#b45309;font-weight:700">⚠️ N+1</span>' : '';
+    const n1Badge = step.is_n_plus_one ? ' <span style="color:#b45309;font-weight:700;display:inline-flex;align-items:center;gap:3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>N+1</span>' : '';
 
     row.innerHTML = `
       <div class="timing-info">
